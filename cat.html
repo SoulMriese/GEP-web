@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>yoyoyo</title>
+  <style>
+    :root {
+      --bg1: #fff4cf;
+      --bg2: #ffc0c8;
+      --bg3: #ff7aa8;
+      --bg4: #7a36ff;
+      --card: rgba(255,255,255,0.14);
+      --card-border: rgba(255,255,255,0.24);
+      --text: #ffffff;
+      --text-soft: rgba(255,255,255,0.88);
+      --gold: #ffe7a6;
+      --shadow: 0 18px 60px rgba(74, 17, 102, 0.28);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+      background: #f5f5f5;
+      overflow-x: hidden;
+    }
+
+    body {
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, var(--bg1) 0%, var(--bg2) 28%, var(--bg3) 55%, var(--bg4) 100%);
+      transition: filter .35s ease, background .35s ease;
+    }
+
+    body.night {
+      filter: saturate(.82) brightness(.88);
+    }
+
+    .page {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .ambient, .glow-follow, .stars, .fireworks, .hearts, .paw-layer, .floaters, .lanterns {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .ambient {
+      background:
+        linear-gradient(120deg, rgba(255,255,255,0.14), transparent 28%, rgba(255,255,255,0.12) 60%, transparent),
+        radial-gradient(circle at 20% 20%, rgba(255,240,180,0.34), transparent 20%),
+        radial-gradient(circle at 80% 10%, rgba(255,255,255,0.24), transparent 18%),
+        radial-gradient(circle at 50% 80%, rgba(255,160,190,0.22), transparent 18%);
+      z-index: 0;
+    }
+
+    .glow-follow {
+      z-index: 1;
+      background: radial-gradient(230px 230px at var(--mx, 50%) var(--my, 30%), rgba(255,255,255,.28), rgba(255,255,255,.08) 30%, transparent 72%);
+    }
+
+    .container {
+      position: relative;
+      z-index: 2;
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 96px 18px 40px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border: 1px solid var(--card-border);
+      background: rgba(255,255,255,0.14);
+      border-radius: 999px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 10px 34px rgba(255,255,255,.12);
+      font-size: 14px;
+      animation: floatY 4s ease-in-out infinite;
+    }
+
+    h1 {
+      margin: 18px 0 0;
+      font-size: clamp(36px, 6vw, 76px);
+      line-height: 1.06;
+      font-weight: 900;
+      letter-spacing: -.03em;
+      text-shadow: 0 8px 26px rgba(0,0,0,.22);
+    }
+
+    .gradient-text {
+      background: linear-gradient(90deg, #ffe48a, #ffffff, #ffd4e4);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .desc {
+      margin-top: 18px;
+      max-width: 680px;
+      color: var(--text-soft);
+      font-size: 17px;
+      line-height: 1.9;
+    }
+
+    .card {
+      margin-top: 24px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-inner { padding: 18px; }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-size: 15px;
+      font-weight: 700;
+      transition: transform .18s ease, opacity .18s ease, box-shadow .18s ease, background .18s ease;
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(1px) scale(.985); }
+    .btn-main { background: #fff; color: #e2467c; }
+    .btn-pink { background: rgba(255,72,137,.95); color: #fff; }
+    .btn-purple { background: rgba(121,75,255,.88); color: #fff; }
+
+    .blessing {
+      margin-top: 18px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.10);
+      border-radius: 24px;
+      padding: 16px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+      min-height: 116px;
+    }
+
+    .blessing-title {
+      color: var(--gold);
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .blessing-text {
+      font-size: clamp(24px, 3.2vw, 30px);
+      font-weight: 900;
+      line-height: 1.35;
+      animation: fadeUp .45s ease;
+    }
+
+    .stats {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .stat {
+      text-align: center;
+      padding: 14px 10px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.1);
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: rgba(255,255,255,.72);
+    }
+
+    .stat-value {
+      margin-top: 6px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .hero-wrap {
+      position: relative;
+    }
+
+    .cat-shell {
+      position: relative;
+      width: min(100%, 560px);
+      margin: 0 auto;
+      padding: 14px;
+      border-radius: 36px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.24);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 24px 90px rgba(255,185,198,.35);
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+      animation: floatCat 5.6s ease-in-out infinite;
+    }
+
+    .cat-shell::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.35), transparent 25%, transparent 74%, rgba(255,255,255,.18));
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .cat-glow {
+      position: absolute;
+      inset: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,.7), rgba(255,255,255,.08), transparent 72%);
+      filter: blur(40px);
+      z-index: -1;
+    }
+
+    .cat-image {
+      position: relative;
+      z-index: 1;
+      display: block;
+      width: 100%;
+      max-height: 72vh;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 40px rgba(0,0,0,.28));
+      transition: transform .28s ease;
+    }
+
+    .cat-shell:hover .cat-image { transform: scale(1.02); }
+    .cat-shell.patted .cat-image { animation: bounceCat .8s ease; }
+
+    .hint {
+      position: absolute;
+      right: 14px;
+      top: 14px;
+      z-index: 3;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.18);
+      backdrop-filter: blur(12px);
+      font-size: 13px;
+      font-weight: 700;
+      animation: twinkle 2.4s ease-in-out infinite;
+    }
+
+    .tag-row {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .tag {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      backdrop-filter: blur(12px);
+      color: rgba(255,255,255,.92);
+      font-size: 14px;
+    }
+
+    .feature-grid {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .feature {
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 28px;
+      backdrop-filter: blur(16px);
+      padding: 18px;
+      transition: transform .25s ease, background .25s ease;
+    }
+
+    .feature:hover {
+      transform: translateY(-4px);
+      background: rgba(255,255,255,.14);
+    }
+
+    .feature-icon {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .feature-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .feature-text {
+      font-size: 14px;
+      line-height: 1.8;
+      color: rgba(255,255,255,.85);
+    }
+
+    .lanterns {
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 8px;
+    }
+
+    .lantern {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: sway 3.8s ease-in-out infinite;
+      transform-origin: top center;
+    }
+
+    .lantern:nth-child(2) { animation-duration: 4.2s; }
+    .lantern:nth-child(3) { animation-duration: 4.5s; }
+    .lantern:nth-child(4) { animation-duration: 4s; }
+
+    .rope {
+      width: 1px;
+      height: 54px;
+      background: linear-gradient(to bottom, rgba(255,255,255,.75), transparent);
+    }
+
+    .lamp {
+      width: 52px;
+      height: 72px;
+      border-radius: 999px;
+      background: linear-gradient(to bottom, #ff7777, #ff3f61 55%, #a90d34 100%);
+      border: 1px solid rgba(255,255,255,.24);
+      box-shadow: 0 0 28px rgba(255,80,80,.45);
+      position: relative;
+    }
+
+    .lamp::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      top: 10px;
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(255,229,166,.8);
+    }
+
+    .lamp::after {
+      content: "";
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 18px;
+      border-radius: 999px;
+      background: #ffd65a;
+    }
+
+    .floater {
+      position: absolute;
+      will-change: transform;
+      opacity: .82;
+      animation: rise linear infinite;
+      filter: drop-shadow(0 6px 16px rgba(255,255,255,.12));
+    }
+
+    .star {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: white;
+      opacity: 0;
+      animation: starBlink 2.4s ease-in-out infinite;
+    }
+
+    .paw {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      opacity: .75;
+      animation: pawFade 2.2s ease forwards;
+    }
+
+    .burst {
+      position: absolute;
+      inset: 0;
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      box-shadow: 0 0 18px rgba(255,255,255,.75);
+      animation: particleFly 1.15s ease-out forwards;
+    }
+
+    .heart {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      font-size: 26px;
+      animation: heartBurst 1s ease-out forwards;
+    }
+
+    .cat-bottom-shine {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 112px;
+      background: linear-gradient(to top, rgba(255,255,255,.14), transparent);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .left { order: 2; }
+      .right { order: 1; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .container { padding-top: 88px; }
+      .lamp { width: 44px; height: 62px; }
+      .rope { height: 44px; }
+    }
+
+    @media (max-width: 640px) {
+      .container { padding-left: 14px; padding-right: 14px; padding-bottom: 28px; }
+      .card-inner { padding: 16px; }
+      .desc { font-size: 15px; line-height: 1.85; }
+      .stats { grid-template-columns: 1fr; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .btn { width: 100%; }
+      .tag-row { justify-content: flex-start; }
+      .lanterns { padding: 0 2px; }
+      .hint { font-size: 12px; right: 10px; top: 10px; }
+      .cat-shell { border-radius: 28px; padding: 10px; }
+      .tag { font-size: 13px; }
+    }
+
+    @keyframes floatY {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes floatCat {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-6px) rotate(-1deg); }
+      75% { transform: translateY(-9px) rotate(1deg); }
+    }
+
+    @keyframes bounceCat {
+      0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+      30% { transform: translateY(-8px) rotate(-1.2deg) scale(1.03); }
+      65% { transform: translateY(-2px) rotate(1.1deg) scale(1.01); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); filter: blur(5px); }
+      to { opacity: 1; transform: translateY(0); filter: blur(0); }
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: .65; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes sway {
+      0%, 100% { transform: rotate(-4deg) translateY(0); }
+      50% { transform: rotate(4deg) translateY(8px); }
+    }
+
+    @keyframes rise {
+      from { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+      10% { opacity: .88; }
+      to { transform: translate3d(var(--dx), calc(-110vh - 120px), 0) rotate(var(--rot)); opacity: 0; }
+    }
+
+    @keyframes starBlink {
+      0%, 100% { opacity: .16; transform: scale(.9); }
+      50% { opacity: .95; transform: scale(1.8); }
+    }
+
+    @keyframes pawFade {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(.45) translateY(8px); }
+      20% { opacity: .72; }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1) translateY(-4px); }
+    }
+
+    @keyframes particleFly {
+      0% { transform: translate(var(--x0), var(--y0)) scale(.3); opacity: 1; }
+      100% { transform: translate(var(--x1), var(--y1)) scale(.15); opacity: 0; }
+    }
+
+    @keyframes heartBurst {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
+      20% { opacity: 1; }
+      100% { opacity: 0; transform: translate(calc(-50% + var(--hx)), calc(-50% + var(--hy))) scale(1.2) rotate(var(--hr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="page" id="page">
+    <div class="ambient"></div>
+    <div class="glow-follow" id="glow"></div>
+
+    <div class="lanterns" id="lanterns">
+      <div class="lantern"><div class="rope"></div><div class="lamp"></div><div class="rope" style="height:24px"></div></div>
+      <div class="lantern"><div class="rope"></div><div class="lamp"></div><div class="rope" style="height:24px"></div></div>
+      <div class="lantern"><div class="rope"></div><div class="lamp"></div><div class="rope" style="height:24px"></div></div>
+      <div class="lantern"><div class="rope"></div><div class="lamp"></div><div class="rope" style="height:24px"></div></div>
+    </div>
+
+    <div class="floaters" id="floaters"></div>
+    <div class="stars" id="stars"></div>
+    <div class="fireworks" id="fireworks"></div>
+    <div class="hearts" id="hearts"></div>
+    <div class="paw-layer" id="pawLayer"></div>
+
+    <div class="container">
+      <div class="grid">
+        <section class="left">
+          
+          <h1>一起和 <span class="gradient-text">福气小猫</span> 庆祝今天</h1>
+          <div class="desc">
+            轻点、滑动、抚摸、放烟花。整页都是互动区域，适合手机和桌面浏览。让这只小猫用热闹又温柔的方式，把今天装点得更有仪式感。
+          </div>
+
+          <div class="card">
+            <div class="card-inner">
+              <div class="btn-row">
+                <button class="btn btn-main" id="blessingBtn">🎁 抽一条祝福</button>
+                <button class="btn btn-pink" id="petBtn">💗 摸摸小猫</button>
+                <button class="btn btn-purple" id="nightBtn">🌙 打开夜景</button>
+              </div>
+
+              <div class="blessing">
+                <div class="blessing-title">✨ 今日祝福</div>
+                <div class="blessing-text" id="blessingText">愿你今天被温柔接住</div>
+              </div>
+
+              <div class="stats">
+                <div class="stat">
+                  <div class="stat-label">小猫状态</div>
+                  <div class="stat-value" id="moodText">元气满满</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">互动次数</div>
+                  <div class="stat-value" id="countText">0</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">幸福指数</div>
+                  <div class="stat-value">∞</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="right hero-wrap">
+          <div class="cat-glow"></div>
+          <div class="cat-shell" id="catShell">
+            <div class="hint">点我有惊喜 ✨</div>
+            <img class="cat-image" src="cat.png" alt="小猫" />
+            <div class="cat-bottom-shine"></div>
+          </div>
+          
+        </section>
+      </div>
+
+      
+    </div>
+  </div>
+
+  <script>
+    const blessings = [
+      '愿你今天被温柔接住',
+      '好运像小猫一样悄悄靠近你',
+      '心想事成，所念皆暖',
+      '新的一天，也要被可爱包围',
+      '福气喵喵加载中',
+      '摸摸小猫，收下今日小确幸',
+      '平安喜乐，万事顺心',
+      '生活闪闪发光，像烟花一样热烈'
+    ];
+
+    const moods = ['元气满满', '被爱包围', '好运暴击', '喵运当头', '暖呼呼', '开心翻倍', '呼噜呼噜'];
+    const floatItems = ['🎉','✨','🧧','💖','🌸','🎊','🐾','💫','🌟','🥰'];
+
+    const page = document.getElementById('page');
+    const glow = document.getElementById('glow');
+    const stars = document.getElementById('stars');
+    const fireworks = document.getElementById('fireworks');
+    const hearts = document.getElementById('hearts');
+    const pawLayer = document.getElementById('pawLayer');
+    const floaters = document.getElementById('floaters');
+    const blessingText = document.getElementById('blessingText');
+    const moodText = document.getElementById('moodText');
+    const countText = document.getElementById('countText');
+    const blessingBtn = document.getElementById('blessingBtn');
+    const petBtn = document.getElementById('petBtn');
+    const nightBtn = document.getElementById('nightBtn');
+    const catShell = document.getElementById('catShell');
+
+    let blessIndex = 0;
+    let count = 0;
+    let night = false;
+    let pawCooldown = 0;
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function updateCount() {
+      countText.textContent = String(count);
+    }
+
+    function setBlessing(text) {
+      blessingText.style.animation = 'none';
+      blessingText.offsetHeight;
+      blessingText.textContent = text;
+      blessingText.style.animation = 'fadeUp .45s ease';
+    }
+
+    function setMood(text) {
+      moodText.textContent = text;
+    }
+
+    function nextBlessing() {
+      blessIndex = (blessIndex + 1) % blessings.length;
+      setBlessing(blessings[blessIndex]);
+    }
+
+    function createFloaters() {
+      for (let i = 0; i < 20; i++) {
+        const el = document.createElement('div');
+        el.className = 'floater';
+        el.textContent = floatItems[i % floatItems.length];
+        el.style.left = rand(0, 100) + 'vw';
+        el.style.top = rand(85, 115) + 'vh';
+        el.style.fontSize = rand(18, 34) + 'px';
+        el.style.setProperty('--dx', rand(-80, 80) + 'px');
+        el.style.setProperty('--rot', rand(-220, 220) + 'deg');
+        el.style.animationDuration = rand(10, 18) + 's';
+        el.style.animationDelay = rand(0, 6) + 's';
+        floaters.appendChild(el);
+      }
+    }
+
+    function createStars() {
+      stars.innerHTML = '';
+      if (!night) return;
+      for (let i = 0; i < 80; i++) {
+        const s = document.createElement('span');
+        s.className = 'star';
+        s.style.left = rand(0, 100) + '%';
+        s.style.top = rand(0, 100) + '%';
+        s.style.animationDelay = rand(0, 3) + 's';
+        s.style.animationDuration = rand(1.6, 4.2) + 's';
+        stars.appendChild(s);
+      }
+    }
+
+    function createPaw(x, y) {
+      const paw = document.createElement('div');
+      paw.className = 'paw';
+      paw.textContent = '🐾';
+      paw.style.left = x + 'px';
+      paw.style.top = y + 'px';
+      paw.style.transform = 'translate(-50%, -50%) rotate(' + rand(-25, 25) + 'deg)';
+      pawLayer.appendChild(paw);
+      setTimeout(() => paw.remove(), 2200);
+    }
+
+    function createFirework(x, y) {
+      const burst = document.createElement('div');
+      burst.className = 'burst';
+      fireworks.appendChild(burst);
+
+      for (let i = 0; i < 18; i++) {
+        const p = document.createElement('span');
+        p.className = 'particle';
+        const angle = (Math.PI * 2 * i) / 18;
+        const dist = rand(50, 120);
+        const size = rand(6, 14);
+        p.style.width = size + 'px';
+        p.style.height = size + 'px';
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
+        p.style.background = 'radial-gradient(circle, rgba(255,255,255,1) 0%, hsla(' + (i * 20 + 40) + ',100%,70%,1) 60%, rgba(255,255,255,0) 100%)';
+        p.style.setProperty('--x0', '0px');
+        p.style.setProperty('--y0', '0px');
+        p.style.setProperty('--x1', (Math.cos(angle) * dist) + 'px');
+        p.style.setProperty('--y1', (Math.sin(angle) * dist) + 'px');
+        p.style.animationDelay = rand(0, 0.08) + 's';
+        burst.appendChild(p);
+      }
+
+      setTimeout(() => burst.remove(), 1300);
+    }
+
+    function createHearts() {
+      const icons = ['💖', '✨', '🐟'];
+      for (let i = 0; i < 14; i++) {
+        const h = document.createElement('div');
+        h.className = 'heart';
+        h.textContent = icons[i % icons.length];
+        h.style.setProperty('--hx', rand(-180, 180) + 'px');
+        h.style.setProperty('--hy', rand(-180, 80) + 'px');
+        h.style.setProperty('--hr', rand(-90, 90) + 'deg');
+        hearts.appendChild(h);
+        setTimeout(() => h.remove(), 1000);
+      }
+    }
+
+    function petCat() {
+      count += 1;
+      updateCount();
+      setMood('呼噜呼噜');
+      catShell.classList.add('patted');
+      createHearts();
+      const rect = catShell.getBoundingClientRect();
+      createFirework(rect.left + rect.width / 2, rect.top + rect.height * 0.52);
+      setTimeout(() => catShell.classList.remove('patted'), 850);
+    }
+
+    function triggerBlessing() {
+      count += 1;
+      updateCount();
+      setMood(pick(moods));
+      setBlessing(pick(blessings));
+      createFirework(window.innerWidth / 2, Math.max(140, window.innerHeight * 0.24));
+    }
+
+    blessingBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      triggerBlessing();
+    });
+
+    petBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      petCat();
+    });
+
+    catShell.addEventListener('click', function(e) {
+      e.stopPropagation();
+      petCat();
+    });
+
+    nightBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      night = !night;
+      document.body.classList.toggle('night', night);
+      nightBtn.textContent = night ? '☀️ 切回白昼' : '🌙 打开夜景';
+      createStars();
+    });
+
+    document.addEventListener('pointermove', function(e) {
+      glow.style.setProperty('--mx', e.clientX + 'px');
+      glow.style.setProperty('--my', e.clientY + 'px');
+
+      const now = Date.now();
+      if (now - pawCooldown > 90 && Math.random() > 0.62) {
+        pawCooldown = now;
+        createPaw(e.clientX, e.clientY);
+      }
+    }, { passive: true });
+
+    page.addEventListener('click', function(e) {
+      createFirework(e.clientX, e.clientY);
+    });
+
+    setInterval(nextBlessing, 3200);
+    createFloaters();
+    createStars();
+  </script>
+</body>
+</html>

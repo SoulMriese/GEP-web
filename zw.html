@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>后勤综合业务门户系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at top left, #e0f2fe, #f4f6fb);
+      color: #0f172a;
+    }
+    header {
+      padding: 18px 20px 14px;
+      background: linear-gradient(135deg, #1f2937, #1d4ed8);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.45);
+    }
+
+    /* 顶部：标题 + 登录入口 */
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .header-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .pill .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #f59e0b; /* 未登录：暖色提示 */
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+    }
+    .pill.ok .dot {
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+    }
+
+    .btn.header-btn {
+      border-color: rgba(255, 255, 255, 0.55);
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+    }
+    .btn.header-btn:hover {
+      background: rgba(255, 255, 255, 0.24);
+    }
+
+    /* 登录弹窗（保持门户整体风格：玻璃拟态 + 蓝色高亮） */
+    /* .modal-mask 已弃用（改用 .backdrop） */
+    .modal-mask {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(2, 6, 23, 0.55);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 999;
+    }
+    .modal {
+      width: min(420px, 100%);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+      overflow: hidden;
+      animation: popIn 0.18s ease both;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .modal-head {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #1f2937, #1d4ed8);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .modal-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .icon-btn {
+      border: 0;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-btn:hover { background: rgba(255, 255, 255, 0.18); }
+    .modal-body {
+      padding: 14px 16px 16px;
+      color: #0f172a;
+    }
+    .modal-hint {
+      font-size: 12px;
+      color: #64748b;
+      margin: 0 0 10px;
+      line-height: 1.5;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .field label {
+      font-size: 12px;
+      color: #334155;
+    }
+    .field input {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 13px;
+      border-radius: 10px;
+      border: 1px solid #cbd5f5;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .field input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .modal-actions .btn {
+      position: static; /* 避免继承卡片按钮绝对定位 */
+    }
+    header .title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    header .subtitle {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    header .tagline {
+      margin-top: 6px;
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 16px auto 24px;
+      padding: 0 12px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-title span {
+      font-size: 11px;
+      background: #e0f2fe;
+      color: #1d4ed8;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 14px;
+      padding: 14px 14px 12px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      backdrop-filter: blur(6px);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .card-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      color: #4b5563;
+      background: #f9fafb;
+      white-space: nowrap;
+    }
+    .card-body {
+      font-size: 13px;
+      color: #4b5563;
+      line-height: 1.5;
+    }
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .card-footer-left {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .btn {
+      font-size: 13px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid #2563eb;
+      background: #2563eb;
+      color: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+      transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
+    }
+    .btn:hover {
+      background: #1d4ed8;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.45);
+    }
+    .btn:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+    .btn.secondary {
+      background: #f9fafb;
+      color: #1f2937;
+      border-color: #d1d5db;
+    }
+    .btn.secondary:hover {
+      background: #e5e7eb;
+      box-shadow: 0 1px 4px rgba(148, 163, 184, 0.55);
+    }
+
+    .list {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .warn {
+      background: #fef3c7;
+      color: #92400e;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+      border: 1px solid #fcd34d;
+      margin-top: 14px;
+    }
+
+    footer {
+      max-width: 1100px;
+      margin: 0 auto 14px;
+      padding: 0 12px;
+      font-size: 11px;
+      color: #9ca3af;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    @media (max-width: 640px) {
+      header .title {
+        font-size: 18px;
+      }
+    }
+  
+    /* 固定卡片按钮到右下角 */
+    .card {
+      position: relative;
+      padding-bottom: 56px; /* 预留按钮空间 */
+    }
+    .card .btn {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+    }
+
+  
+    /* ===== 轻量动效增强 ===== */
+
+    /* 卡片悬浮：上浮 + 阴影 */
+    .card {
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+    }
+
+    /* 按钮悬浮：放大 + 高亮 */
+    .card .btn {
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+    .card .btn:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+    .card .btn:active {
+      transform: scale(0.96);
+    }
+
+    /* 卡片入场动画 */
+    @keyframes cardFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card {
+      animation: cardFadeUp 0.5s ease both;
+    }
+
+    /* 错峰进入（更有层次） */
+    .card:nth-child(1) { animation-delay: 0.05s; }
+    .card:nth-child(2) { animation-delay: 0.10s; }
+    .card:nth-child(3) { animation-delay: 0.15s; }
+    .card:nth-child(4) { animation-delay: 0.20s; }
+    .card:nth-child(5) { animation-delay: 0.25s; }
+    .card:nth-child(6) { animation-delay: 0.30s; }
+    .card:nth-child(7) { animation-delay: 0.35s; }
+
+    /* 减少动画（系统开启“减少动效”时） */
+    @media (prefers-reduced-motion: reduce) {
+      .card,
+      .card:hover,
+      .card .btn,
+      .card .btn:hover {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+      }
+    }
+
+    /* ===== 登录弹窗（与现有美术风格统一） ===== */
+    .backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 9999;
+    }
+    .backdrop.show { display: flex; }
+    .backdrop { overflow: auto; }
+
+    /* 弹窗入场动画：只做透明度，避免和居中用到的 transform 冲突 */
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* 默认：现代浏览器用 flex 居中 */
+    .backdrop.show .modal {
+      position: relative;
+      transform: none;
+      max-height: calc(100vh - 28px);
+      overflow: auto;
+      animation: modalFadeIn 0.22s ease both;
+    }
+
+    /* 兜底：当某些内核 flex 居中异常时，用绝对定位强制居中（由 JS 自动加 class 触发） */
+    .backdrop.fallback-center .modal {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      animation: modalFadeIn 0.22s ease both;
+    }
+
+    .modal {
+      width: min(420px, 100%);
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+      /* 动画在 .backdrop.show .modal 里统一控制 */
+    }
+    .modal-head {
+      padding: 14px 14px 10px;
+      background: linear-gradient(135deg, rgba(31, 41, 55, 0.95), rgba(29, 78, 216, 0.95));
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .modal-head .t {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .modal-head .x {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-body { padding: 14px; }
+    .modal-hint {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .form label {
+      font-size: 12px;
+      color: #475569;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .form input {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 13px;
+      border-radius: 10px;
+      border: 1px solid #cbd5f5;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+    .modal-actions {
+      margin-top: 6px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-row">
+    <div>
+      <div class="title">后勤综合业务门户系统</div>
+      <div class="subtitle">综合业务系统统一入口（内部使用）</div>
+      <div class="tagline">2026年3月20日-V1.3</div>
+    </div>
+    <div class="header-actions">
+      <div id="auth-pill" class="pill">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="auth-text">未登录</span>
+      </div>
+      <button id="auth-btn" class="btn secondary" type="button">登录</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="section-title">
+    部门业务系统入口
+    <span>内部使用</span>
+  </div>
+  <div class="grid">
+  
+  
+       <!-- 1.学校官网 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">广东工程职业技术学院</div>
+        <div class="card-badge">学校官网</div>
+      </div>
+      <div class="card-body">
+        学校官网
+        <ul class="list">
+          <li>学校官方网站</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <div class="card-footer-left">
+          访问地址：https://www.gdep.edu.cn/
+        </div>
+        <a class="btn" href="https://www.gdep.edu.cn/" target="_blank" rel="noopener noreferrer">
+          进入学校官网
+        </a>
+      </div>
+    </div>
+	
+	
+    <!-- 2. 智慧充电管理系统 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">智慧充电管理系统</div>
+        <div class="card-badge">充电桩管理</div>
+      </div>
+      <div class="card-body">
+        主要用于校内充电桩的使用管理、订单查询、电费统计等。
+        <ul class="list">
+          <li>支持扫码充电、订单记录查看</li>
+          <li>查看充电记录及相关统计信息</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <div class="card-footer-left">
+          访问地址：lvcchong.com
+        </div>
+        <a class="btn" href="https://www.lvcchong.com/login" target="_blank" rel="noopener noreferrer">
+          进入充电管理系统
+        </a>
+      </div>
+    </div>
+
+
+    <!-- 3. 宿舍在线保修系统 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">报修管理系统</div>
+        <div class="card-badge">报修后台</div>
+      </div>
+      <div class="card-body">
+        用于宿舍设施故障在线报修、维修进度查询等。管理人员可通过此系统处理维修信息。
+        <ul class="list">
+          <li>查看维修数据面板</li>
+          <li>查看维修处理进度及结果</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <div class="card-footer-left">
+          访问地址：120.25.87.205/zxbx
+        </div>
+        <a class="btn" href="http://120.25.87.205/zxbx/index.action" target="_blank" rel="noopener noreferrer">
+          进入报修管理系统
+        </a>
+      </div>
+    </div>
+
+
+    <!-- 4. 宿舍管理平台系统 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">宿舍管理平台系统</div>
+        <div class="card-badge">宿舍综合管理</div>
+      </div>
+      <div class="card-body">
+        学生宿舍基础信息管理、入住调整、等功能集中管理的平台
+        <ul class="list">
+          <li>学生信息管理</li>
+          <li>调宿等业务办理</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <div class="card-footer-left">
+          访问地址：ssgl.gdep.edu.cn
+        </div>
+        <a class="btn" href="https://ssgl.gdep.edu.cn/dorm/" target="_blank" rel="noopener noreferrer">
+          进入宿舍管理系统
+        </a>
+      </div>
+    </div>
+
+
+    <!-- 5. 考勤与补贴计算系统 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">考勤系统</div>
+        <div class="card-badge">人员考勤</div>
+      </div>
+      <div class="card-body">
+        统一管理人员出勤情况、广州/清远出勤统计&清远出差补贴自动计算与公示&年度汇总。
+        <ul class="list">
+          <li>考勤记录</li>
+          <li>自动计算清远补贴</li>
+          <li>年度汇总、公示内容一键生成</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <div class="card-footer-left">
+          部署位置：本服务器（华为云-华南弹性计算Flexus应用服务器L实例1）
+        </div>
+        <a class="btn" href="./index.html">
+          进入考勤管理系统
+        </a>
+      </div>
+    </div>
+	
+	
+    <!-- 6. 物联网水电系统管理系统 -->
+     <div class="card">
+      <div class="card-header">
+        <div class="card-title">物联网水电管理系统</div>
+        <div class="card-badge">水电管理</div>
+      </div>
+      <div class="card-body">
+        面向内部使用，物联网水电管理系统。
+        <ul class="list">
+          <li>水电数据面板</li>
+          <li>水电价格调整</li>
+          <li>物联网传感器状态查询</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <div class="card-footer-left">
+          访问地址：https://znsd.gdep.edu.cn/energyloginwap
+        </div>
+        <a class="btn" href="https://znsd.gdep.edu.cn/energyloginwap/login?service=http://znsd.gdep.edu.cn/energymanager/login">
+          进入水电管理系统
+        </a>
+      </div>
+    </div>
+    
+	
+       <!-- 7. 合同管理系统-->
+     <div class="card">
+      <div class="card-header">
+        <div class="card-title">合同管理系统</div>
+        <div class="card-badge">测试中</div>
+      </div>
+      <div class="card-body">
+        开发版本2
+        <ul class="list">
+          <li>2026年3月20日-V1.3</li>
+          <li>---</li>
+          <li>---</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <div class="card-footer-left">
+          访问地址：-------
+        </div>
+        <a class="btn" href="http://113.45.130.200/contract.html">
+          测试中
+        </a>
+      </div>
+    </div>
+    
+
+    
+    
+
+    
+    
+    
+    
+  </div>
+
+  <div class="warn">
+    温馨提示：请勿在校园网以外的网络环境使用本系统，请注意使用安全
+  </div>
+</main>
+
+<footer>
+  <div>后勤综合门户系统_V1.3|2026年3月20日|Powerby@Mriese</div>
+  <div id="footer-right">&nbsp;</div>
+</footer>
+
+<!-- 登录弹窗 -->
+<div id="auth-backdrop" class="backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div class="modal-head">
+      <div id="auth-title" class="t">系统登录</div>
+      <button id="auth-close" class="x" type="button" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-hint">登陆以访问系统（将复用考勤系统账号）。</div>
+      <div class="form">
+        <div>
+          <label for="auth-username">账号</label>
+          <input id="auth-username" type="text" placeholder="输入账号" autocomplete="username" />
+        </div>
+        <div>
+          <label for="auth-password">密码</label>
+          <input id="auth-password" type="password" placeholder="输入密码" autocomplete="current-password" />
+        </div>
+        <div style="margin-top:10px; display:flex; align-items:center; gap:8px; color:#334155; font-size:12px;">
+          <input id="auth-remember" type="checkbox" style="width:14px; height:14px;" />
+          <label for="auth-remember" style="cursor:pointer; user-select:none;">记住我（30天内免密码登录）</label>
+        </div>
+        <div class="modal-actions">
+          <button id="auth-logout" class="btn secondary" type="button" style="margin-right:auto; display:none;">退出登录</button>
+          <button id="auth-cancel" class="btn secondary" type="button">取消</button>
+          <button id="auth-submit" class="btn" type="button">登录</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ================== 统一登录（门户层） ==================
+  const API_BASE = 'api.php';
+  let currentUser = null;
+  let pendingUrl = null;
+
+  function apiGet(action, params = {}) {
+    const url = new URL(API_BASE, window.location.href);
+    url.searchParams.set('action', action);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    return fetch(url.toString(), { credentials: 'same-origin' }).then(r => r.json());
+  }
+  function apiPost(action, data = {}) {
+    const url = new URL(API_BASE, window.location.href);
+    url.searchParams.set('action', action);
+    return fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'same-origin'
+    }).then(r => r.json());
+  }
+
+  function setPill(user) {
+    const pill = document.getElementById('auth-pill');
+    const text = document.getElementById('auth-text');
+    const btn = document.getElementById('auth-btn');
+    const footerRight = document.getElementById('footer-right');
+    const logoutBtn = document.getElementById('auth-logout');
+
+    if (!user) {
+      pill.classList.remove('ok');
+      text.textContent = '未登录';
+      btn.textContent = '登录';
+      footerRight.textContent = '';
+      logoutBtn.style.display = 'none';
+    } else {
+      pill.classList.add('ok');
+      text.textContent = user.username + '（' + (user.role === 'admin' ? '管理员' : '普通用户') + '）';
+      btn.textContent = '已登录';
+      footerRight.textContent = '登录状态：' + user.username;
+      logoutBtn.style.display = '';
+    }
+  }
+
+  function openModal() {
+    const backdrop = document.getElementById('auth-backdrop');
+    // 先移除兜底 class，避免上一次检测结果影响
+    backdrop.classList.remove('fallback-center');
+    backdrop.classList.add('show');
+    backdrop.setAttribute('aria-hidden', 'false');
+    // 防止出现 flex 居中失效。
+    // 轻量的几何检测
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          const modal = backdrop.querySelector('.modal');
+          if (!modal) return;
+          const r = modal.getBoundingClientRect();
+          const cx = r.left + r.width / 2;
+          const cy = r.top + r.height / 2;
+          const vx = window.innerWidth / 2;
+          const vy = window.innerHeight / 2;
+
+          const dx = Math.abs(cx - vx);
+          const dy = Math.abs(cy - vy);
+
+          // 偏差明显 or 弹窗出界 -> 启用兜底居中
+          if (dx > 40 || dy > 40 || r.left < 0 || r.top < 0 || r.right > window.innerWidth || r.bottom > window.innerHeight) {
+            backdrop.classList.add('fallback-center');
+          }
+        } catch (e) {
+          // 静默失败，不影响使用
+        }
+      });
+    });
+
+    setTimeout(() => {
+      (document.getElementById('auth-username') || {}).focus?.();
+    }, 0);
+  }
+  function closeModal() {
+    const backdrop = document.getElementById('auth-backdrop');
+    backdrop.classList.remove('show');
+    backdrop.setAttribute('aria-hidden', 'true');
+  }
+
+  async function checkLogin() {
+    try {
+      const res = await apiGet('me');
+      currentUser = res && res.ok ? res.data : null;
+    } catch (e) {
+      currentUser = null;
+    }
+    setPill(currentUser);
+  }
+
+  function hookProtectedLinks() {
+    // 将“诸多内部系统”入口统一加一层门户登录保护
+    document.querySelectorAll('a.btn[href]').forEach(a => {
+      // 明确标记 data-public="1" 的，放行
+      if (a.dataset && a.dataset.public === '1') return;
+
+      a.addEventListener('click', (e) => {
+        if (!currentUser) {
+          e.preventDefault();
+          pendingUrl = a.getAttribute('href');
+          openModal();
+        }
+      });
+    });
+  }
+
+  function initAuthUI() {
+    const openBtn = document.getElementById('auth-btn');
+    const closeBtn = document.getElementById('auth-close');
+    const cancelBtn = document.getElementById('auth-cancel');
+    const backdrop = document.getElementById('auth-backdrop');
+    const submitBtn = document.getElementById('auth-submit');
+    const logoutBtn = document.getElementById('auth-logout');
+
+    openBtn.addEventListener('click', () => openModal());
+    closeBtn.addEventListener('click', () => closeModal());
+    cancelBtn.addEventListener('click', () => closeModal());
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      const username = (document.getElementById('auth-username').value || '').trim();
+      const password = (document.getElementById('auth-password').value || '').trim();
+      const remember = !!document.getElementById('auth-remember')?.checked;
+      if (!username || !password) {
+        alert('请输入账号和密码');
+        return;
+      }
+      submitBtn.disabled = true;
+      try {
+        const res = await apiPost('login', { username, password, remember: remember ? 1 : 0 });
+        if (!res.ok) {
+          alert(res.msg || '登录失败');
+          return;
+        }
+        currentUser = res.data;
+        setPill(currentUser);
+        closeModal();
+        if (pendingUrl) {
+          const go = pendingUrl;
+          pendingUrl = null;
+          window.location.href = go;
+        } else {
+          alert('登录成功：' + currentUser.username);
+        }
+      } catch (e) {
+        alert('登录请求失败：' + e.message);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      try { await apiGet('logout'); } catch (e) {}
+      currentUser = null;
+      setPill(currentUser);
+      alert('已退出登录');
+    });
+  }
+
+  (async function boot() {
+    // 支持从子系统被拦截后回跳：zw.html?redirect=...（url-encoded path）
+    try {
+      const u = new URL(window.location.href);
+      const r = u.searchParams.get('redirect');
+      if (r) pendingUrl = decodeURIComponent(r);
+    } catch (e) {}
+
+    await checkLogin();
+
+    // 如果已登录且带有 redirect，自动回到目标页
+    if (currentUser && pendingUrl) {
+      const go = pendingUrl;
+      pendingUrl = null;
+      window.location.replace(go);
+      return;
+    }
+    hookProtectedLinks();
+    initAuthUI();
+  })();
+</script>
+
+</body>
+</html>

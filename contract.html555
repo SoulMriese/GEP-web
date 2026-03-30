@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>合同管理</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f4f6fb; color: #111827; }
+    header { background: linear-gradient(135deg, #1f6feb, #294d9b); color: #fff; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    header .title { font-size: 18px; font-weight: 600; }
+    header .subtitle { font-size: 12px; opacity: .85; }
+    main { max-width: 1600px; margin: 12px auto 20px; padding: 0 10px; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08); padding: 12px; margin-bottom: 12px; overflow: hidden; }
+    .card-header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+    .card-header .title { font-size: 15px; font-weight: 600; }
+    .card-header .subtitle { font-size: 12px; color: #6b7280; }
+    .form-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .form-row > div { min-width: 0; flex: 1 1 180px; }
+    label { display: block; font-size: 12px; color: #4b5563; margin-bottom: 4px; }
+    input, select, textarea { width: 100%; max-width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5f5; font-size: 13px; }
+    textarea { min-height: 70px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15); }
+    button { font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px solid #2563eb; background: #2563eb; color: #fff; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    button.secondary { background: #fff; color: #1d4ed8; }
+    button.danger { background: #dc2626; border-color: #dc2626; }
+
+    .warning-summary {
+      display: none;
+      margin-bottom: 12px;
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid #f59e0b;
+      background: linear-gradient(135deg, #fff7ed, #fffbeb);
+      color: #9a3412;
+    }
+    .warning-summary.show { display: block; }
+    .warning-summary strong { font-size: 14px; }
+    .warning-line { margin-top: 4px; font-size: 13px; color: #7c2d12; }
+    .warning-badges { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: .18s;
+      user-select: none;
+    }
+    .stat-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,.08); }
+    .stat-card.active { box-shadow: 0 0 0 2px rgba(37,99,235,.18) inset; }
+    .stat-card .num { font-size: 18px; font-weight: 700; line-height: 1.2; }
+    .stat-card .txt { font-size: 12px; margin-top: 6px; color: #475569; }
+    .stat-half-year { background: #fffbeb; border-color: #f59e0b; }
+    .stat-90 { background: #fff7ed; border-color: #fb923c; }
+    .stat-30 { background: #fef2f2; border-color: #f87171; }
+    .stat-expired { background: #fef2f2; border-color: #ef4444; }
+    @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .stats-grid { grid-template-columns: 1fr; } }
+
+    .table-wrap { width: 100%; overflow-x: auto; overflow-y: hidden; }
+    table { width: 100%; min-width: 1180px; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    th, td { border: 1px solid #e5e7eb; padding: 6px; text-align: center; white-space: normal; word-break: break-word; overflow-wrap: anywhere; vertical-align: top; }
+    th { background: #f9fafb; font-weight: 600; }
+    .badge { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; font-size: 11px; border: 1px solid #e5e7eb; background: #f9fafb; color: #4b5563; }
+    .status-draft { color: #92400e; background: #fef3c7; border-color: #f59e0b; }
+    .status-active { color: #166534; background: #dcfce7; border-color: #22c55e; }
+    .status-expired, .status-terminated { color: #991b1b; background: #fee2e2; border-color: #ef4444; }
+    .status-archived { color: #1d4ed8; background: #dbeafe; border-color: #3b82f6; }
+
+    .warn-normal { color: #475569; background: #f8fafc; border-color: #cbd5e1; }
+    .warn-half-year { color: #92400e; background: #fef3c7; border-color: #f59e0b; }
+    .warn-90 { color: #9a3412; background: #ffedd5; border-color: #fb923c; }
+    .warn-30 { color: #991b1b; background: #fee2e2; border-color: #ef4444; }
+    .warn-expired { color: #ffffff; background: #b91c1c; border-color: #b91c1c; }
+
+    .hint { font-size: 12px; color: #6b7280; }
+    .danger-text { color: #b91c1c; }
+    .hidden { display: none; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+    .muted { color: #6b7280; }
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .nowrap { white-space: nowrap; }
+    .ellipsis-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-align: left;
+      line-height: 1.45;
+      max-height: 2.9em;
+    }
+    .money { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .action-buttons { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .action-buttons button { font-size: 12px; padding: 4px 10px; }
+    a { color: #1d4ed8; text-decoration: none; }
+    @media (max-width: 900px) {
+      .form-row > div { flex: 1 1 100%; }
+      .card-header { align-items: flex-start; flex-direction: column; }
+      table { min-width: 1100px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="title">合同管理</div>
+    <div class="subtitle">SRM · 合同台账 / 附件上传 / 原件登记</div>
+  </div>
+  <div>
+    当前登录：<span id="current-user-label" class="badge">未登录</span>
+  </div>
+</header>
+<main>
+  <div id="warning-summary" class="warning-summary"></div>
+
+  <div class="stats-grid">
+    <div class="stat-card stat-half-year" data-warning-card="half_year">
+      <div class="num" id="stat-half-year">0</div>
+      <div class="txt">180天内到期</div>
+    </div>
+    <div class="stat-card stat-90" data-warning-card="90">
+      <div class="num" id="stat-90">0</div>
+      <div class="txt">90天内到期</div>
+    </div>
+    <div class="stat-card stat-30" data-warning-card="30">
+      <div class="num" id="stat-30">0</div>
+      <div class="txt">30天内到期</div>
+    </div>
+    <div class="stat-card stat-expired" data-warning-card="expired">
+      <div class="num" id="stat-expired">0</div>
+      <div class="txt">已过期</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="title">合同检索</div>
+        <div class="subtitle">支持按编号、名称、乙方、状态、到期预警筛选</div>
+      </div>
+      <div>
+        <button id="reload-btn" type="button">刷新列表</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><label>关键词</label><input id="keyword" type="text" placeholder="合同编号 / 名称 / 乙方"></div>
+      <div><label>乙方单位</label><input id="vendor_name" type="text" placeholder=""></div>
+      <div><label>状态</label>
+        <select id="status">
+          <option value="">全部</option>
+          <option value="draft">草稿</option>
+          <option value="active">已生效</option>
+          <option value="expired">已到期</option>
+          <option value="terminated">已终止</option>
+          <option value="archived">已归档</option>
+        </select>
+      </div>
+      <div><label>到期起</label><input id="date_from" type="date"></div>
+      <div><label>到期止</label><input id="date_to" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div><label>到期预警</label>
+        <select id="warning_filter">
+          <option value="">全部</option>
+          <option value="half_year">180天内到期</option>
+          <option value="90">90天内到期</option>
+          <option value="30">30天内到期</option>
+          <option value="expired">已过期</option>
+          <option value="normal">正常</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <button id="search-btn" type="button">查询</button>
+      <button id="reset-btn" type="button" class="secondary">重置</button>
+      <button id="new-btn" type="button">新增合同</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="title">合同台账</div>
+        <div class="subtitle">已增加到期预警提示，优先显示即将到期和已过期合同</div>
+      </div>
+    </div>
+    <div id="table-container">正在加载...</div>
+  </div>
+
+  <div class="card hidden" id="editor-card">
+    <div class="card-header">
+      <div>
+        <div class="title" id="editor-title">新增合同</div>
+        <div class="subtitle">保存后可在详情中继续上传合同原件扫描件</div>
+      </div>
+      <div><button id="close-editor-btn" type="button" class="secondary">收起</button></div>
+    </div>
+    <form id="contract-form">
+      <input type="hidden" id="contract_id">
+      <div class="split">
+        <div>
+          <div class="form-row"><div><label>合同编号 *</label><input id="contract_no" required></div><div><label>合同名称 *</label><input id="contract_name" required></div></div>
+          <div class="form-row"><div><label>合同类型</label><input id="contract_type"></div><div><label>乙方单位 *</label><input id="vendor_name_form" required></div></div>
+          <div class="form-row"><div><label>乙方联系人</label><input id="vendor_contact"></div><div><label>乙方电话</label><input id="vendor_phone"></div></div>
+          <div class="form-row"><div><label>合同金额</label><input id="contract_amount" type="number" step="0.01"></div><div><label>付款方式</label><input id="payment_method"></div></div>
+          <div class="form-row"><div><label>经办人ID</label><input id="manager_user_id" type="number" placeholder="users表里的id"></div><div><label>状态</label>
+            <select id="contract_status">
+              <option value="draft">草稿</option>
+              <option value="active">已生效</option>
+              <option value="expired">已到期</option>
+              <option value="terminated">已终止</option>
+              <option value="archived">已归档</option>
+            </select>
+          </div></div>
+        </div>
+        <div>
+          <div class="form-row"><div><label>签订日期</label><input id="sign_date" type="date"></div><div><label>生效日期</label><input id="start_date" type="date"></div></div>
+          <div class="form-row"><div><label>终止日期</label><input id="end_date" type="date"></div><div><label>归档日期</label><input id="archive_date" type="date"></div></div>
+          <div class="form-row"><div><label>纸质原件是否已收齐</label>
+            <select id="original_received"><option value="0">否</option><option value="1">是</option></select>
+          </div><div><label>原件份数</label><input id="original_count" type="number" min="0" value="0"></div></div>
+          <div class="form-row"><div><label>原件存放位置</label><input id="original_location" placeholder="档案柜A-02"></div><div><label>是否归档</label>
+            <select id="archive_status"><option value="0">否</option><option value="1">是</option></select>
+          </div></div>
+        </div>
+      </div>
+      <div class="form-row"><div><label>合同内容摘要</label><textarea id="content_summary"></textarea></div></div>
+      <div class="form-row"><div><label>备注</label><textarea id="remark"></textarea></div></div>
+      <div class="form-row">
+        <button type="submit">保存合同</button>
+        <span class="hint">带 * 为必填项</span>
+      </div>
+    </form>
+  </div>
+
+  <div class="card hidden" id="detail-card">
+    <div class="card-header">
+      <div>
+        <div class="title">合同详情</div>
+        <div class="subtitle">查看详情、附件、日志，并上传合同原件扫描件</div>
+      </div>
+      <div><button id="close-detail-btn" type="button" class="secondary">关闭详情</button></div>
+    </div>
+    <div id="detail-content">请选择一份合同</div>
+  </div>
+</main>
+<script>
+const API_BASE = 'api.php';
+let currentUser = null;
+
+function apiGet(action, params = {}) {
+  const url = new URL(API_BASE, window.location.href);
+  url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k,v]) => { if (v !== '' && v !== null && v !== undefined) url.searchParams.set(k, v); });
+  return fetch(url.toString(), { credentials: 'same-origin' }).then(r => r.json());
+}
+function apiPost(action, data = {}) {
+  const url = new URL(API_BASE, window.location.href);
+  url.searchParams.set('action', action);
+  return fetch(url.toString(), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), credentials: 'same-origin'
+  }).then(r => r.json());
+}
+function apiUpload(action, formData) {
+  const url = new URL(API_BASE, window.location.href);
+  url.searchParams.set('action', action);
+  return fetch(url.toString(), { method: 'POST', body: formData, credentials: 'same-origin' }).then(r => r.json());
+}
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function statusText(v) {
+  return ({draft:'草稿', active:'已生效', expired:'已到期', terminated:'已终止', archived:'已归档'})[v] || v || '';
+}
+function statusBadge(v) {
+  return `<span class="badge status-${escapeHtml(v)}">${escapeHtml(statusText(v))}</span>`;
+}
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+function calcWarning(endDateStr) {
+  const d = parseDate(endDateStr);
+  if (!d) return { key: 'normal', text: '未设置', days: null, sort: 99 };
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const ms = d.getTime() - today.getTime();
+  const days = Math.ceil(ms / 86400000);
+  if (days < 0) return { key: 'expired', text: '已过期', days, sort: 0 };
+  if (days <= 30) return { key: '30', text: '30天内到期', days, sort: 1 };
+  if (days <= 90) return { key: '90', text: '90天内到期', days, sort: 2 };
+  if (days <= 180) return { key: 'half_year', text: '180天内到期', days, sort: 3 };
+  return { key: 'normal', text: '正常', days, sort: 4 };
+}
+function warningBadge(endDateStr) {
+  const w = calcWarning(endDateStr);
+  const classMap = {
+    normal: 'warn-normal',
+    half_year: 'warn-half-year',
+    '90': 'warn-90',
+    '30': 'warn-30',
+    expired: 'warn-expired'
+  };
+  const suffix = (w.days !== null && w.key !== 'normal' && w.key !== 'expired') ? `（${w.days}天）` : '';
+  return `<span class="badge ${classMap[w.key] || 'warn-normal'}">${escapeHtml(w.text + suffix)}</span>`;
+}
+function formatMoney(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function renderWarningSummary(rows) {
+  const box = document.getElementById('warning-summary');
+  const expired = rows.filter(r => calcWarning(r.end_date).key === 'expired').length;
+  const d30 = rows.filter(r => calcWarning(r.end_date).key === '30').length;
+  const d90 = rows.filter(r => calcWarning(r.end_date).key === '90').length;
+  const d180 = rows.filter(r => calcWarning(r.end_date).key === 'half_year').length;
+  const totalWarn = expired + d30 + d90 + d180;
+
+  document.getElementById('stat-half-year').textContent = d180;
+  document.getElementById('stat-90').textContent = d90;
+  document.getElementById('stat-30').textContent = d30;
+  document.getElementById('stat-expired').textContent = expired;
+  syncWarningCardActive();
+
+  if (!totalWarn) {
+    box.className = 'warning-summary';
+    box.innerHTML = '';
+    return;
+  }
+
+  box.className = 'warning-summary show';
+  box.innerHTML = `
+    <strong>合同到期预警</strong>
+    <div class="warning-line">当前共有 <b>${totalWarn}</b> 份合同需要关注，其中已过期 <b>${expired}</b> 份，30天内到期 <b>${d30}</b> 份，90天内到期 <b>${d90}</b> 份，180天内到期 <b>${d180}</b> 份。</div>
+    <div class="warning-badges">
+      ${expired ? `<span class="badge warn-expired">已过期 ${expired}</span>` : ''}
+      ${d30 ? `<span class="badge warn-30">30天内到期 ${d30}</span>` : ''}
+      ${d90 ? `<span class="badge warn-90">90天内到期 ${d90}</span>` : ''}
+      ${d180 ? `<span class="badge warn-half-year">180天内到期 ${d180}</span>` : ''}
+    </div>
+  `;
+}
+
+function syncWarningCardActive() {
+  const v = document.getElementById('warning_filter').value;
+  document.querySelectorAll('[data-warning-card]').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('data-warning-card') === v);
+  });
+}
+function bindWarningCards() {
+  document.querySelectorAll('[data-warning-card]').forEach(el => {
+    el.addEventListener('click', () => {
+      const value = el.getAttribute('data-warning-card');
+      const select = document.getElementById('warning_filter');
+      select.value = select.value === value ? '' : value;
+      syncWarningCardActive();
+      loadContracts();
+    });
+  });
+}
+
+async function ensureLogin() {
+  const res = await apiGet('me');
+  if (!res.ok) {
+    alert('请先登录');
+    location.href = 'zw.html';
+    return false;
+  }
+  currentUser = res.data;
+  document.getElementById('current-user-label').textContent = `${currentUser.username}（${currentUser.role}）`;
+  return true;
+}
+function applyWarningFilter(rows) {
+  const warningFilter = document.getElementById('warning_filter').value;
+  if (!warningFilter) return rows;
+  return rows.filter(r => calcWarning(r.end_date).key === warningFilter);
+}
+function sortRows(rows) {
+  return rows.slice().sort((a, b) => {
+    const wa = calcWarning(a.end_date);
+    const wb = calcWarning(b.end_date);
+    if (wa.sort !== wb.sort) return wa.sort - wb.sort;
+    const da = parseDate(a.end_date);
+    const db = parseDate(b.end_date);
+    if (da && db) return da - db;
+    return Number(a.id || 0) - Number(b.id || 0);
+  });
+}
+async function loadContracts() {
+  const res = await apiGet('get_contracts', {
+    keyword: document.getElementById('keyword').value.trim(),
+    vendor_name: document.getElementById('vendor_name').value.trim(),
+    status: document.getElementById('status').value,
+    date_from: document.getElementById('date_from').value,
+    date_to: document.getElementById('date_to').value,
+  });
+  const c = document.getElementById('table-container');
+  if (!res.ok) { c.innerHTML = `<div class="danger-text">${escapeHtml(res.msg)}</div>`; return; }
+  const rows = res.data || [];
+  renderWarningSummary(rows);
+
+  const filtered = sortRows(applyWarningFilter(rows));
+  if (!filtered.length) { c.innerHTML = '<div class="muted">暂无合同数据</div>'; return; }
+
+  c.innerHTML = `<div class="table-wrap"><table><thead><tr>
+    <th style="width:56px;">ID</th>
+    <th style="width:150px;">合同编号</th>
+    <th style="width:190px;">合同名称</th>
+    <th style="width:170px;">乙方</th>
+    <th style="width:120px;">金额</th>
+    <th style="width:110px;">终止日期</th>
+    <th style="width:110px;">到期预警</th>
+    <th style="width:90px;">状态</th>
+    <th style="width:80px;">原件</th>
+    <th style="width:90px;">经办人</th>
+    <th style="width:150px;">操作</th>
+  </tr></thead><tbody>${filtered.map(r => `<tr>
+    <td>${r.id}</td>
+    <td>${escapeHtml(r.contract_no)}</td>
+    <td><div class="ellipsis-2">${escapeHtml(r.contract_name)}</div></td>
+    <td><div class="ellipsis-2">${escapeHtml(r.vendor_name)}</div></td>
+    <td class="money">${formatMoney(r.contract_amount)}</td>
+    <td>${escapeHtml(r.end_date || '')}</td>
+    <td>${warningBadge(r.end_date)}</td>
+    <td>${statusBadge(r.contract_status)}</td>
+    <td>${Number(r.original_received) ? '已收齐' : '未收齐'}</td>
+    <td>${escapeHtml(r.manager_username || '')}</td>
+    <td><div class="action-buttons">
+      <button type="button" onclick="showDetail(${r.id})">详情</button>
+      ${currentUser && currentUser.role === 'admin' ? `<button type="button" class="secondary" onclick="editContract(${r.id})">编辑</button>
+      <button type="button" class="danger" onclick="deleteContract(${r.id})">删除</button>` : ''}
+    </div></td>
+  </tr>`).join('')}</tbody></table></div>`;
+}
+function fillForm(d = {}) {
+  ['contract_id','contract_no','contract_name','contract_type','vendor_contact','vendor_phone','contract_amount','sign_date','start_date','end_date','payment_method','manager_user_id','content_summary','remark','original_count','original_location','archive_date'].forEach(id => {
+    const map = {contract_id:'id'};
+    document.getElementById(id).value = d[map[id] || id] ?? '';
+  });
+  document.getElementById('vendor_name_form').value = d.vendor_name ?? '';
+  document.getElementById('contract_status').value = d.contract_status ?? 'draft';
+  document.getElementById('original_received').value = String(Number(d.original_received || 0));
+  document.getElementById('archive_status').value = String(Number(d.archive_status || 0));
+}
+function openEditor(title) {
+  document.getElementById('editor-title').textContent = title;
+  document.getElementById('editor-card').classList.remove('hidden');
+  document.getElementById('editor-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function editContract(id) {
+  const res = await apiGet('get_contract_detail', { id });
+  if (!res.ok) return alert(res.msg || '加载失败');
+  fillForm(res.data.contract || {});
+  openEditor('编辑合同');
+}
+function resetForm() {
+  document.getElementById('contract-form').reset();
+  document.getElementById('contract_id').value = '';
+  document.getElementById('contract_status').value = 'draft';
+  document.getElementById('original_received').value = '0';
+  document.getElementById('archive_status').value = '0';
+}
+async function deleteContract(id) {
+  if (!confirm('确认删除这份合同吗？删除后附件也会一起删除。')) return;
+  const res = await apiPost('delete_contract', { id });
+  alert(res.msg || (res.ok ? '删除成功' : '删除失败'));
+  if (res.ok) {
+    document.getElementById('detail-card').classList.add('hidden');
+    loadContracts();
+  }
+}
+async function showDetail(id) {
+  const res = await apiGet('get_contract_detail', { id });
+  if (!res.ok) return alert(res.msg || '加载失败');
+  const { contract, attachments, logs, changes } = res.data;
+  const warn = calcWarning(contract.end_date);
+  const warnText = warn.key === 'normal' ? '正常' : (warn.key === 'expired' ? '已过期' : `${warn.text}（${warn.days}天）`);
+  const filesHtml = attachments.length ? `<table><thead><tr><th>ID</th><th>类型</th><th>文件名</th><th>说明</th><th>上传人</th><th>上传时间</th><th>操作</th></tr></thead><tbody>${attachments.map(a => `<tr>
+    <td>${a.id}</td><td>${escapeHtml(a.attachment_type)}</td><td>${escapeHtml(a.file_name)}</td><td>${escapeHtml(a.remark || '')}</td>
+    <td>${escapeHtml(a.uploaded_by_name || '')}</td><td>${escapeHtml(a.uploaded_at || '')}</td><td>
+      <a href="contract_download.php?id=${a.id}" target="_blank">下载</a>
+      ${currentUser && currentUser.role === 'admin' ? ` | <a href="javascript:void(0)" onclick="deleteFile(${a.id},${contract.id})">删除</a>` : ''}
+    </td></tr>`).join('')}</tbody></table>` : '<div class="muted">暂无附件</div>';
+  const logsHtml = logs.length ? `<table><thead><tr><th>时间</th><th>操作</th><th>说明</th><th>操作人</th></tr></thead><tbody>${logs.map(l => `<tr><td>${escapeHtml(l.action_time||'')}</td><td>${escapeHtml(l.action_type||'')}</td><td>${escapeHtml(l.action_desc||'')}</td><td>${escapeHtml(l.action_user_name||'')}</td></tr>`).join('')}</tbody></table>` : '<div class="muted">暂无日志</div>';
+  const changesHtml = changes && changes.length ? `<table><thead><tr><th>类型</th><th>变更前</th><th>变更后</th><th>原因</th><th>时间</th></tr></thead><tbody>${changes.map(ch => `<tr><td>${escapeHtml(ch.change_type||'')}</td><td>${escapeHtml(ch.before_value||'')}</td><td>${escapeHtml(ch.after_value||'')}</td><td>${escapeHtml(ch.reason||'')}</td><td>${escapeHtml(ch.created_at||'')}</td></tr>`).join('')}</tbody></table>` : '<div class="muted">暂无变更记录</div>';
+  const uploadHtml = currentUser && currentUser.role === 'admin' ? `
+    <div class="card" style="box-shadow:none;border:1px solid #e5e7eb;">
+      <div class="card-header"><div><div class="title">上传附件 / 原件扫描件</div></div></div>
+      <form id="upload-form" onsubmit="return uploadFile(event, ${contract.id})">
+        <div class="form-row">
+          <div><label>附件类型</label><select id="upload_attachment_type"><option value="contract_file">合同文件</option><option value="original_scan">原件扫描件</option><option value="supplement">补充协议</option><option value="invoice">发票</option><option value="acceptance">验收单</option><option value="other">其他</option></select></div>
+          <div><label>是否原件扫描件</label><select id="upload_is_original_scan"><option value="0">否</option><option value="1">是</option></select></div>
+          <div><label>说明</label><input id="upload_remark" placeholder="例如：盖章版"></div>
+        </div>
+        <div class="form-row"><div><label>选择文件</label><input id="upload_file" type="file" required></div></div>
+        <div class="form-row"><button type="submit">上传</button><span class="hint">支持 pdf/doc/docx/jpg/jpeg/png，单文件不超过20MB</span></div>
+      </form>
+    </div>` : '';
+  document.getElementById('detail-content').innerHTML = `
+    <div class="split">
+      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb;">
+        <div class="card-header"><div><div class="title">基本信息</div></div></div>
+        <table>
+          <tr><th>合同编号</th><td>${escapeHtml(contract.contract_no)}</td><th>合同名称</th><td>${escapeHtml(contract.contract_name)}</td></tr>
+          <tr><th>合同类型</th><td>${escapeHtml(contract.contract_type||'')}</td><th>乙方单位</th><td>${escapeHtml(contract.vendor_name||'')}</td></tr>
+          <tr><th>联系人</th><td>${escapeHtml(contract.vendor_contact||'')}</td><th>电话</th><td>${escapeHtml(contract.vendor_phone||'')}</td></tr>
+          <tr><th>合同金额</th><td>${escapeHtml(contract.contract_amount||'')}</td><th>状态</th><td>${statusBadge(contract.contract_status)}</td></tr>
+          <tr><th>签订日期</th><td>${escapeHtml(contract.sign_date||'')}</td><th>生效/终止</th><td>${escapeHtml(contract.start_date||'')} ~ ${escapeHtml(contract.end_date||'')}</td></tr>
+          <tr><th>到期预警</th><td>${warningBadge(contract.end_date)}</td><th>提醒说明</th><td>${escapeHtml(warnText)}</td></tr>
+          <tr><th>经办人</th><td>${escapeHtml(contract.manager_username||'')}</td><th>付款方式</th><td>${escapeHtml(contract.payment_method||'')}</td></tr>
+          <tr><th>纸质原件</th><td>${Number(contract.original_received)?'已收齐':'未收齐'} / ${escapeHtml(contract.original_count||0)}</td><th>原件位置</th><td>${escapeHtml(contract.original_location||'')}</td></tr>
+          <tr><th>归档</th><td>${Number(contract.archive_status)?'已归档':'未归档'}</td><th>归档日期</th><td>${escapeHtml(contract.archive_date||'')}</td></tr>
+          <tr><th>摘要</th><td colspan="3" style="text-align:left;white-space:normal;">${escapeHtml(contract.content_summary||'')}</td></tr>
+          <tr><th>备注</th><td colspan="3" style="text-align:left;white-space:normal;">${escapeHtml(contract.remark||'')}</td></tr>
+        </table>
+      </div>
+      <div>${uploadHtml}</div>
+    </div>
+    <div class="card" style="box-shadow:none;border:1px solid #e5e7eb;"><div class="card-header"><div><div class="title">附件列表</div></div></div>${filesHtml}</div>
+    <div class="card" style="box-shadow:none;border:1px solid #e5e7eb;"><div class="card-header"><div><div class="title">操作日志</div></div></div>${logsHtml}</div>
+    <div class="card" style="box-shadow:none;border:1px solid #e5e7eb;"><div class="card-header"><div><div class="title">变更记录</div></div></div>${changesHtml}</div>`;
+  document.getElementById('detail-card').classList.remove('hidden');
+  document.getElementById('detail-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function deleteFile(id, contractId) {
+  if (!confirm('确认删除该附件吗？')) return;
+  const res = await apiPost('delete_contract_file', { id });
+  alert(res.msg || (res.ok ? '删除成功' : '删除失败'));
+  if (res.ok) showDetail(contractId);
+}
+async function uploadFile(e, contractId) {
+  e.preventDefault();
+  const fileInput = document.getElementById('upload_file');
+  if (!fileInput.files.length) return false;
+  const fd = new FormData();
+  fd.append('contract_id', contractId);
+  fd.append('attachment_type', document.getElementById('upload_attachment_type').value);
+  fd.append('is_original_scan', document.getElementById('upload_is_original_scan').value);
+  fd.append('remark', document.getElementById('upload_remark').value.trim());
+  fd.append('file', fileInput.files[0]);
+  const res = await apiUpload('upload_contract_file', fd);
+  alert(res.msg || (res.ok ? '上传成功' : '上传失败'));
+  if (res.ok) showDetail(contractId);
+  return false;
+}
+
+document.getElementById('search-btn').addEventListener('click', loadContracts);
+document.getElementById('reload-btn').addEventListener('click', loadContracts);
+document.getElementById('warning_filter').addEventListener('change', loadContracts);
+document.getElementById('reset-btn').addEventListener('click', () => {
+  ['keyword','vendor_name','status','date_from','date_to','warning_filter'].forEach(id => document.getElementById(id).value = '');
+  loadContracts();
+});
+document.getElementById('new-btn').addEventListener('click', () => { resetForm(); openEditor('新增合同'); });
+document.getElementById('close-editor-btn').addEventListener('click', () => document.getElementById('editor-card').classList.add('hidden'));
+document.getElementById('close-detail-btn').addEventListener('click', () => document.getElementById('detail-card').classList.add('hidden'));
+document.getElementById('contract-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    id: document.getElementById('contract_id').value || undefined,
+    contract_no: document.getElementById('contract_no').value.trim(),
+    contract_name: document.getElementById('contract_name').value.trim(),
+    contract_type: document.getElementById('contract_type').value.trim(),
+    vendor_name: document.getElementById('vendor_name_form').value.trim(),
+    vendor_contact: document.getElementById('vendor_contact').value.trim(),
+    vendor_phone: document.getElementById('vendor_phone').value.trim(),
+    contract_amount: document.getElementById('contract_amount').value,
+    sign_date: document.getElementById('sign_date').value,
+    start_date: document.getElementById('start_date').value,
+    end_date: document.getElementById('end_date').value,
+    payment_method: document.getElementById('payment_method').value.trim(),
+    contract_status: document.getElementById('contract_status').value,
+    manager_user_id: document.getElementById('manager_user_id').value,
+    content_summary: document.getElementById('content_summary').value.trim(),
+    remark: document.getElementById('remark').value.trim(),
+    original_received: document.getElementById('original_received').value,
+    original_count: document.getElementById('original_count').value,
+    original_location: document.getElementById('original_location').value.trim(),
+    archive_status: document.getElementById('archive_status').value,
+    archive_date: document.getElementById('archive_date').value,
+  };
+  const action = payload.id ? 'update_contract' : 'create_contract';
+  const res = await apiPost(action, payload);
+  alert(res.msg || (res.ok ? '保存成功' : '保存失败'));
+  if (res.ok) {
+    document.getElementById('editor-card').classList.add('hidden');
+    loadContracts();
+    if (res.data && res.data.id) showDetail(res.data.id);
+  }
+});
+
+(async function init(){ bindWarningCards(); if (await ensureLogin()) loadContracts(); })();
+</script>
+</body>
+</html>

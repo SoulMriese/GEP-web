@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>考勤与补贴计算系统(V26.3.4)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- 门户统一登录保护：未登录则返回主页-->
+  <style id="portal-auth-hide">body{display:none;}</style>
+  <script>
+    (function(){
+      const API_BASE = 'api.php';
+      const url = new URL(API_BASE, window.location.href);
+      url.searchParams.set('action','me');
+      fetch(url.toString(), { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(res => {
+          if (!res || !res.ok) {
+            const back = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.replace('./zw.html?redirect=' + back);
+            return;
+          }
+          const s = document.getElementById('portal-auth-hide');
+          if (s) s.remove();
+        })
+        .catch(() => {
+          const back = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.replace('./zw.html?redirect=' + back);
+        });
+    })();
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f4f6fb;
+      color: #333;
+    }
+    header {
+      background: linear-gradient(135deg, #1f6feb, #294d9b);
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    header .title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    header .subtitle {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    header .tagline {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    main {
+      padding: 16px;
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    @media (min-width: 1024px) {
+      .grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      #allowance-card {
+        grid-column: span 1;
+      }
+      #year-summary-card {
+        grid-column: span 2;
+      }
+      /* 年度日历单独占一行 */
+      #year-calendar-card {
+        grid-column: 1 / -1;
+      }
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+      padding: 12px 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .card-header .title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .card-header .subtitle {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .card-body {
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    label {
+      font-size: 12px;
+      color: #475569;
+      margin-bottom: 2px;
+      display: block;
+    }
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 5px 8px;
+      font-size: 13px;
+      border-radius: 6px;
+      border: 1px solid #cbd5f5;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
+    }
+
+    button {
+      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #2563eb;
+      background: #2563eb;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.05s, box-shadow 0.15s;
+    }
+    button:hover {
+      background: #1d4ed8;
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.35);
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+    button[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .form-row > * {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .form-row > label {
+      flex: 0 0 auto;
+      margin-bottom: 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .badge-admin {
+      background: rgba(22, 163, 74, 0.12);
+      color: #15803d;
+      border: 1px solid rgba(22, 163, 74, 0.35);
+    }
+    .badge-user {
+      background: rgba(59, 130, 246, 0.08);
+      color: #1d4ed8;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .employee-tag {
+      display: inline-flex;
+      align-items: center;
+      background: #eff6ff;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      margin: 2px;
+      border: 1px solid #bfdbfe;
+      max-width: 100%;
+    }
+    
+    .employee-tag .name {
+      max-width: 130px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .employee-tag button {
+      margin-left: 4px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: transparent;
+      color: #ef4444;
+      border-color: transparent;
+    }
+    
+    .employee-tag button:hover {
+      background: #fee2e2;
+      border-color: #fecaca;
+    }
+
+    #employee-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+    }
+
+    /* 当月考勤表：*/
+    #attendance-table-container {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+    }
+    #attendance-table-container table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 700px;
+      font-size: 12px;
+    }
+    #attendance-table-container th,
+    #attendance-table-container td {
+      border: 1px solid #e2e8f0;
+      padding: 3px 4px;
+      text-align: center;
+    }
+    #attendance-table-container th {
+      background: #f8fafc;
+      font-weight: 500;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    #attendance-table-container td .att-cell {
+      width: 100%;
+      font-size: 12px;
+      padding: 2px 4px;
+    }
+    #attendance-table-container .name-col {
+      white-space: nowrap;
+      text-align: left;
+      min-width: 120px;
+    }
+    #attendance-table-container .summary-col {
+      font-weight: 600;
+      background: #f9fafb;
+    }
+    .month-remove-btn {
+      display: inline-block;
+      margin-left: 6px;
+      border-radius: 999px;
+      border: none;
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 1px 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .month-remove-btn:hover {
+      background: #fecaca;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* 日期下面星期样式 */
+    .weekday-label {
+      font-size: 10px;
+      color: #9ca3af;
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* 图表卡片高度 */
+    #attendance-chart-card {
+      height: 360px;
+    }
+    #attendance-chart {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 通用表格样式 */
+    #allowance-table-container table,
+    #year-summary-table table,
+    #public-output table,
+    #qy-resident-table table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 12px;
+    }
+    #allowance-table-container th, #allowance-table-container td,
+    #year-summary-table th, #year-summary-table td,
+    #public-output th, #public-output td,
+    #qy-resident-table th, #qy-resident-table td {
+      border: 1px solid #e2e8f0;
+      padding: 3px 6px;
+      text-align: center;
+    }
+    #allowance-table-container th,
+    #year-summary-table th,
+    #public-output th,
+    #qy-resident-table th {
+      background: #f8fafc;
+    }
+
+    /* 年度日历 */
+    .calendar-month {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px;
+      margin-bottom: 8px;
+      background: #fff;
+    }
+    .calendar-month-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .calendar-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    .calendar-table th, .calendar-table td {
+      border: 1px solid #e5e7eb;
+      width: 14.28%;
+      text-align: center;
+      padding: 2px 0;
+    }
+    .calendar-table th {
+      background: #f9fafb;
+      font-weight: 500;
+    }
+    .calendar-empty {
+      background: #f9fafb;
+    }
+    .calendar-weekend {
+      color: #b91c1c;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 11px;
+      color: #94a3b8;
+      padding: 8px 0 16px;
+    }
+
+    .admin-only { }
+
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    /* ====== 状态颜色样式（加深饱和度版本） ====== */
+.status-gz {
+  background: #bfdbfe;  /* 蓝：广州 */
+  color: #0f172a;
+}
+.status-qy {
+  background: #bbf7d0;  /* 绿：清远 */
+  color: #052e16;
+}
+.status-gongjia {
+  background: #7dd3fc;  /* 浅蓝：公假（算出勤） */
+  color: #0c4a6e;
+}
+.status-absent {
+  background: #fecaca;  /*红：缺勤/旷工 */
+  color: #991b1b;
+}
+.status-shijia,
+.status-bingjia,
+.status-chanjia,
+.status-sangjia {
+  background: #fde68a;  /* 黄：各类假期（不算出勤） */
+  color: #78350f;
+}
+
+/* 清远常驻行高亮 */
+    .qy-resident-row {
+      background: #fff7ed;
+    }
+    .qy-resident-tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      margin-left: 4px;
+      background: #fed7aa;
+      color: #9a3412;
+    }
+  
+/* 财务导出 */
+.admin-export-box {
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px dashed #94a3b8;
+  background: #f8fafc;
+}
+.admin-export-box h3 {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+}
+.admin-export-box button {
+  margin-right: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+
+
+/* 方案Alpha：系统状态卡片（上下结构） */
+.stack-section .section-title{
+  font-weight:600;
+  margin-bottom:8px;
+}
+
+/* 分隔线 */
+.card-divider{
+  border:0;
+  border-top:1px solid #e2e8f0;
+  margin:12px 0;
+}
+
+/* 清远常驻：折叠区块（默认收起，减少视觉拥挤） */
+.resident-details{
+  border:1px solid #e2e8f0;
+  background:#ffffff;
+  border-radius:10px;
+  padding:10px 12px;
+}
+.resident-details > summary{
+  cursor:pointer;
+  list-style:none;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.resident-details > summary::-webkit-details-marker{
+  display:none;
+}
+.summary-title{
+  font-weight:600;
+}
+.summary-subtitle{
+  color:#64748b;
+  font-size:12px;
+}
+.resident-body{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px dashed #e2e8f0;
+}
+
+
+
+/* ===== 动画模块： ===== */
+.form-row{
+  row-gap: 6px;
+}
+/* 常见的“按钮行”（右对齐）增加上边距，避免贴着输入框 */
+.form-row[style*="justify-content:flex-end"]{
+  margin-top: 6px;
+}
+/* border宽度 */
+#login-btn, #logout-btn{
+  padding: 6px 14px;
+}
+#login-btn, #logout-btn{
+  margin-top: 2px;
+}
+
+/* ===== 轻量动效） ===== */
+
+/* 卡片悬浮：上浮 + 阴影 */
+.card{
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  animation: cardFadeUp 0.5s ease both;
+}
+.card:hover{
+  transform: translateY(-6px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+/* 按钮悬浮：放大 + 高亮 */
+button{
+  transition: background 0.15s, transform 0.2s ease, box-shadow 0.2s ease;
+}
+button:hover{
+  transform: translateY(-1px) scale(1.02);
+}
+button:active{
+  transform: scale(0.96);
+}
+
+/* 入场动画 */
+@keyframes cardFadeUp{
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 错峰进入（更有层次） */
+.grid > .card:nth-child(1){ animation-delay: 0.05s; }
+.grid > .card:nth-child(2){ animation-delay: 0.10s; }
+.grid > .card:nth-child(3){ animation-delay: 0.15s; }
+.grid > .card:nth-child(4){ animation-delay: 0.20s; }
+.grid > .card:nth-child(5){ animation-delay: 0.25s; }
+.grid > .card:nth-child(6){ animation-delay: 0.30s; }
+.grid > .card:nth-child(7){ animation-delay: 0.35s; }
+.grid > .card:nth-child(8){ animation-delay: 0.40s; }
+.grid > .card:nth-child(9){ animation-delay: 0.45s; }
+.grid > .card:nth-child(10){ animation-delay: 0.50s; }
+
+/* 系统开启“减少动效”时自动关闭 */
+@media (prefers-reduced-motion: reduce){
+  .card, .card:hover, button, button:hover{
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="title">考勤系统</div>
+    <div class="subtitle">动态考勤与清远补贴管理系统（内部专用）</div>
+  </div>
+  <div class="tagline">本系统仅内部使用</div>
+</header>
+
+<main>
+  <div class="grid">
+    <!-- 登录模块 -->
+    
+    <!-- 系统状态（登录 + 月份选择） -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="title">系统状态</div>
+          <div class="subtitle">先登录，再选择要管理 / 查看的考勤年月</div>
+        </div>
+        <div>
+          当前角色：
+          <span id="role-label" class="badge badge-user">未登录</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="stack-section">
+          <div class="section-title">系统登录</div>
+          <div class="form-row">
+          <label for="login-username">账号</label>
+          <input id="login-username" type="text" placeholder="输入账号" />
+        </div>
+        <div class="form-row">
+          <label for="login-password">密码</label>
+          <input id="login-password" type="password" placeholder="输入密码" />
+        </div>
+        <div class="form-row" style="justify-content:flex-end; gap:8px;">
+          <button id="login-btn" type="button">登录</button>
+          <button id="logout-btn" type="button">退出</button>
+        </div>
+        </div>
+
+        <hr class="card-divider" />
+
+        <div class="stack-section">
+          <div class="section-title">考勤月份选择</div>
+          <div class="form-row">
+          <label for="year-input">年份</label>
+          <input id="year-input" type="number" min="2000" max="2100" />
+        </div>
+        <div class="form-row">
+          <label for="month-select">月份</label>
+          <select id="month-select">
+            <option value="1">1 月</option>
+            <option value="2">2 月</option>
+            <option value="3">3 月</option>
+            <option value="4">4 月</option>
+            <option value="5">5 月</option>
+            <option value="6">6 月</option>
+            <option value="7">7 月</option>
+            <option value="8">8 月</option>
+            <option value="9">9 月</option>
+            <option value="10">10 月</option>
+            <option value="11">11 月</option>
+            <option value="12">12 月</option>
+          </select>
+        </div>
+        <div class="form-row" style="justify-content:flex-end;">
+          <button id="load-month-btn" type="button">加载当月考勤</button>
+        </div>
+        <div class="hint">
+          首次加载某个月份时，系统会默认启用所有在职人员，可按需“本月移除”。
+        </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 人员管理（管理员） -->
+    <div class="card admin-only">
+      <div class="card-header">
+        <div>
+          <div class="title">人员管理</div>
+          <div class="subtitle">统一维护本部门人员名单，可批量添加</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <label for="emp-name-input">单人添加</label>
+          <input id="emp-name-input" type="text" placeholder="输入姓名，如：张三" />
+          <button id="add-emp-btn" type="button">添加</button>
+        </div>
+        <div class="form-row">
+          <label for="emp-bulk-input">批量添加（用“、”或逗号分隔）</label>
+        </div>
+        <div class="form-row">
+          <textarea id="emp-bulk-input" rows="2" placeholder="例如：张三、李四、王五"></textarea>
+        </div>
+        <div class="form-row" style="justify-content:flex-end;">
+          <button id="add-emp-bulk-btn" type="button">批量添加</button>
+        </div>
+        <div>
+          <div style="margin-bottom:4px;">当前人员名单：</div>
+          <div id="employee-list"></div>
+        </div>
+      
+        <hr class="card-divider" />
+        <details class="resident-details">
+          <summary>
+            <span class="summary-title">清远常驻设置（按年份）</span>
+            <span class="summary-subtitle">设置上半年 / 下半年 / 全年常驻清远，不计对应月份清远补贴</span>
+          </summary>
+          <div class="resident-body">
+            <div class="form-row">
+          <label for="qy-resident-year-input">年份</label>
+          <input id="qy-resident-year-input" type="number" min="2000" max="2100" />
+          <button id="qy-resident-load-btn" type="button">加载本年常驻设置</button>
+        </div>
+        <div id="qy-resident-table" style="margin-top:6px;"></div>
+        <div class="hint">
+          说明：<br>
+          · 非常驻：全年按正常规则计算清远补贴。<br>
+          · 上半年常驻：1–6 月在清远不计补贴，7–12 月正常计算。<br>
+          · 下半年常驻：1–6 月正常计算，7–12 月在清远不计补贴。<br>
+          · 全年常驻：当年在清远均不计补贴。
+          </div>
+        </details>
+</div>
+    </div>
+
+    <!-- 清远常驻设置（按年份） -->
+    
+
+    <!-- 当月考勤表（独占一行） -->
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-header">
+        <div>
+          <div class="title">当月考勤表</div>
+          <div class="subtitle">记录广州 / 清远 / 公假 / 各类假 / 缺勤，管理员可编辑，普通账号只读</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="hint" style="margin-bottom:4px;">
+          颜色说明：
+          <span class="status-gz" style="padding:2px 6px;border-radius:4px;margin-right:4px;">广州</span>
+          <span class="status-qy" style="padding:2px 6px;border-radius:4px;margin-right:4px;">清远</span>
+          <span class="status-gongjia" style="padding:2px 6px;border-radius:4px;margin-right:4px;">公假（算出勤）</span>
+          <span class="status-shijia" style="padding:2px 6px;border-radius:4px;margin-right:4px;">事/产/丧假（不算出勤）</span>
+          <span class="status-absent" style="padding:2px 6px;border-radius:4px;margin-right:4px;">缺勤</span>
+        </div>
+        <div id="table-empty-hint" class="hint">
+          请先登录并选择年月，然后点击“加载当月考勤”。
+        </div>
+        <div id="attendance-table-container"></div>
+      </div>
+    </div>
+
+    <!-- 当月出勤图表（独占一行） -->
+    <div class="card" id="attendance-chart-card" style="grid-column: 1 / -1;">
+      <div class="card-header">
+        <div>
+          <div class="title">当月广州 / 清远出勤统计图</div>
+          <div class="subtitle">按人员统计当月广州与清远出勤天数</div>
+        </div>
+      </div>
+      <div class="card-body" style="min-height: 260px;">
+        <canvas id="attendance-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- 当月清远补贴 -->
+    <div class="card" id="allowance-card">
+      <div class="card-header">
+        <div>
+          <div class="title">当月清远补贴明细</div>
+          <div class="subtitle">规则：第一天 110 元，随后连续 35 元/天，清远常驻月份不计补贴</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <label for="qy-first-input">清远出差首日补贴（元）</label>
+          <input id="qy-first-input" type="number" min="0" step="1" />
+        </div>
+        <div class="form-row">
+          <label for="qy-next-input">清远出差后续补贴（元/天）</label>
+          <input id="qy-next-input" type="number" min="0" step="1" />
+        </div>
+        <div class="hint">
+          补贴规则仅由管理员修改，当前规则将保存在浏览器本地。
+        </div>
+        <div id="allowance-table-container" style="margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <!-- 年度汇总 -->
+    <div class="card" id="year-summary-card">
+      <div class="card-header">
+        <div>
+          <div class="title">年度汇总</div>
+          <div class="subtitle">按人员统计全年出勤与清远补贴情况（考虑常驻规则）</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <label for="year-summary-input">年份</label>
+          <input id="year-summary-input" type="number" min="2000" max="2100" />
+          <button id="year-summary-btn" type="button">生成年度汇总</button>
+        </div>
+        <div id="year-summary-table" style="margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <!-- 年度日历 -->
+    <div class="card" id="year-calendar-card">
+      <div class="card-header">
+        <div>
+          <div class="title">年度日历</div>
+          <div class="subtitle">方便对照日期与周末/节假日安排</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <label for="year-calendar-input">年份</label>
+          <input id="year-calendar-input" type="number" min="2000" max="2100" />
+          <button id="year-calendar-btn" type="button">重新生成日历</button>
+        </div>
+        <div id="year-calendar-container" style="margin-top:6px; max-height: 400px; overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- 公示系统 -->
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-header">
+        <div>
+          <div class="title">公示系统</div>
+          <div class="subtitle">按人生成某月 / 全年的出勤与清远补贴公示内容（考虑常驻规则）</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <label for="public-emp-select">人员</label>
+          <select id="public-emp-select"></select>
+        </div>
+        <div class="form-row">
+          <label for="public-year-input">年份</label>
+          <input id="public-year-input" type="number" min="2000" max="2100" />
+        </div>
+        <div class="form-row">
+          <label for="public-month-select">月份</label>
+          <select id="public-month-select">
+            <option value="0">全年</option>
+            <option value="1">1 月</option>
+            <option value="2">2 月</option>
+            <option value="3">3 月</option>
+            <option value="4">4 月</option>
+            <option value="5">5 月</option>
+            <option value="6">6 月</option>
+            <option value="7">7 月</option>
+            <option value="8">8 月</option>
+            <option value="9">9 月</option>
+            <option value="10">10 月</option>
+            <option value="11">11 月</option>
+            <option value="12">12 月</option>
+          </select>
+        </div>
+        <div class="form-row" style="justify-content:flex-end;">
+          <button id="public-generate-btn" type="button">生成公示内容</button>
+        </div>
+        <div id="public-output" style="margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <!-- 管理工具 -->
+    <div class="card admin-only">
+      <div class="card-header">
+        <div>
+          <div class="title">系统管理工具</div>
+          <div class="subtitle">为避免多人冲突，导入导出暂由后台或数据库操作</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-row" style="flex-wrap: wrap;">
+          <button id="export-finance-month-btn" type="button">导出当月考勤表</button>
+          <button id="export-finance-year-btn" type="button">导出全年考勤表（全年ZIP）</button>
+        </div>
+        <div class="hint">
+          *版本version1.5-2026年3月4日<br>
+          *修复了导出表格出现的格式字体不统一的问题
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+Power by @Mriese-更新日期：2026年3月4日
+</footer>
+
+<script src="chart.umd.js"></script>
+<script>
+  'use strict';
+
+  const API_BASE = 'api.php';
+  const ALLOWANCE_STORAGE_KEY = 'attendance_qy_allowance_config_v1';
+
+  let currentUser = null;
+  let globalEmployees = [];
+  let currentMonthData = {
+    year: null,
+    month: null,
+    employees: [],
+    attendance: {}
+  };
+  let allowanceConfig = { first: 110, next: 35 };
+  let chartInstance = null;
+
+  // 清远常驻规则： { year: { empId: rule } }
+  let qyResidentMapByYear = {};
+  let qyResidentSettingsYear = null;
+
+  // ----------------- 基础 API 封装 -----------------
+  function apiGet(action, params = {}) {
+    const url = new URL(API_BASE, window.location.href);
+    url.searchParams.set('action', action);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    return fetch(url.toString(), {
+      credentials: 'same-origin'
+    }).then(r => r.json());
+  }
+
+  function apiPost(action, data = {}) {
+    const url = new URL(API_BASE, window.location.href);
+    url.searchParams.set('action', action);
+    return fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'same-origin'
+    }).then(r => r.json());
+  }
+
+  function isAdmin() {
+    return currentUser && currentUser.role === 'admin';
+  }
+
+  // ----------------- 清远常驻前端辅助模块 -----------------
+  function getQyResidentRuleForYear(empId, year) {
+    year = Number(year);
+    const yearMap = qyResidentMapByYear[year];
+    if (!yearMap) return 'none';
+    return yearMap[empId] || 'none';
+  }
+
+  function isQyResidentForMonth(rule, month) {
+    month = Number(month);
+    if (!rule || rule === 'none') return false;
+    if (rule === 'full') return true;
+    if (rule === 'first') return (month >= 1 && month <= 6);
+    if (rule === 'second') return (month >= 7 && month <= 12);
+    return false;
+  }
+
+  function getQyResidentLabelForMonth(empId, year, month) {
+    const rule = getQyResidentRuleForYear(empId, year);
+    if (!rule || rule === 'none') return '';
+    if (!isQyResidentForMonth(rule, month)) return '';
+    if (rule === 'full')   return '（全年常驻清远）';
+    if (rule === 'first')  return '（上半年常驻清远）';
+    if (rule === 'second') return '（下半年常驻清远）';
+    return '';
+  }
+
+  async function loadQyResidentRules(year) {
+    year = Number(year);
+    if (!year || !currentUser) return;
+    try {
+      const res = await apiGet('get_qy_resident_rules', { year });
+      const map = {};
+      if (res.ok && Array.isArray(res.data)) {
+        res.data.forEach(r => {
+          map[Number(r.employee_id)] = r.rule || 'none';
+        });
+      }
+      qyResidentMapByYear[year] = map;
+      if (qyResidentSettingsYear === year) {
+        renderQyResidentSettingsTable();
+      }
+    } catch (e) {
+      console.error('加载清远常驻设置失败：', e);
+    }
+  }
+
+  async function ensureQyResidentRulesLoaded(year) {
+    year = Number(year);
+    if (!year) return;
+    if (qyResidentMapByYear[year]) return;
+    await loadQyResidentRules(year);
+  }
+
+  function renderQyResidentSettingsTable() {
+    const container = document.getElementById('qy-resident-table');
+    if (!container) return;
+    const year = qyResidentSettingsYear;
+    if (!currentUser || !isAdmin()) {
+      container.innerHTML = '<span class="hint">仅管理员可设置清远常驻规则。</span>';
+      return;
+    }
+    if (!year) {
+      container.innerHTML = '<span class="hint">请先选择年份并点击“加载本年常驻设置”。</span>';
+      return;
+    }
+    if (!globalEmployees.length) {
+      container.innerHTML = '<span class="hint">暂无员工数据，请先在人员管理中添加。</span>';
+      return;
+    }
+
+    const yearMap = qyResidentMapByYear[year] || {};
+    let html = '<table><thead><tr><th>姓名</th><th>常驻规则</th></tr></thead><tbody>';
+    globalEmployees.forEach(emp => {
+      const rule = yearMap[emp.id] || 'none';
+      html += `
+        <tr>
+          <td>${emp.name}</td>
+          <td>
+            <select class="qy-resident-select" data-emp-id="${emp.id}">
+              <option value="none"   ${rule === 'none'   ? 'selected' : ''}>非常驻</option>
+              <option value="first"  ${rule === 'first'  ? 'selected' : ''}>上半年常驻</option>
+              <option value="second" ${rule === 'second' ? 'selected' : ''}>下半年常驻</option>
+              <option value="full"   ${rule === 'full'   ? 'selected' : ''}>全年常驻</option>
+            </select>
+          </td>
+        </tr>
+      `;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    container.querySelectorAll('.qy-resident-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const empId = Number(sel.getAttribute('data-emp-id'));
+        const rule  = sel.value;
+        try {
+          const res = await apiPost('set_qy_resident_rule', {
+            employee_id: empId,
+            year: year,
+            rule
+          });
+          if (!res.ok) {
+            alert(res.msg || '保存常驻设置失败');
+            return;
+          }
+          if (!qyResidentMapByYear[year]) qyResidentMapByYear[year] = {};
+          qyResidentMapByYear[year][empId] = rule;
+          // 更新当月考勤表、补贴、图表
+          renderAttendanceTable();
+          renderAllowanceTable();
+        } catch (e) {
+          alert('保存常驻设置请求失败：' + e.message);
+        }
+      });
+    });
+  }
+
+  // ----------------- 登录区域 -----------------
+  function updateRoleUI() {
+    const roleLabel = document.getElementById('role-label');
+    const logoutBtn = document.getElementById('logout-btn');
+    const adminEls  = document.querySelectorAll('.admin-only');
+
+    if (!currentUser) {
+      roleLabel.textContent = '未登录';
+      roleLabel.className = 'badge badge-user';
+      logoutBtn.disabled = true;
+      adminEls.forEach(el => el.style.display = 'none');
+    } else if (isAdmin()) {
+      roleLabel.textContent = '管理员';
+      roleLabel.className = 'badge badge-admin';
+      logoutBtn.disabled = false;
+      adminEls.forEach(el => el.style.display = '');
+    } else {
+      roleLabel.textContent = '普通用户';
+      roleLabel.className = 'badge badge-user';
+      logoutBtn.disabled = false;
+      adminEls.forEach(el => el.style.display = 'none');
+    }
+
+    const qyFirstInput = document.getElementById('qy-first-input');
+    const qyNextInput  = document.getElementById('qy-next-input');
+    if (qyFirstInput && qyNextInput) {
+      qyFirstInput.disabled = !isAdmin();
+      qyNextInput.disabled  = !isAdmin();
+    }
+
+    renderAttendanceTable();
+  }
+
+  function initLoginArea() {
+    const loginBtn  = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const userInput = document.getElementById('login-username');
+    const pwdInput  = document.getElementById('login-password');
+
+    loginBtn.addEventListener('click', async () => {
+      const username = (userInput.value || '').trim();
+      const password = (pwdInput.value || '').trim();
+      if (!username || !password) {
+        alert('请输入账号和密码');
+        return;
+      }
+      try {
+        const res = await apiPost('login', { username, password });
+        if (!res.ok) {
+          alert(res.msg || '登录失败');
+          return;
+        }
+        currentUser = res.data;
+        updateRoleUI();
+        alert('登录成功：' + currentUser.username + '（角色：' + currentUser.role + '）');
+        await loadEmployees();
+        await loadCurrentMonthData();
+        const now = new Date();
+        await loadQyResidentRules(now.getFullYear());
+        renderQyResidentSettingsTable();
+      } catch (e) {
+        alert('登录请求失败：' + e.message);
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await apiGet('logout');
+      } catch (e) {}
+      currentUser = null;
+      updateRoleUI();
+      alert('已退出登录');
+    });
+  }
+
+  async function checkLoginOnLoad() {
+    try {
+      const res = await apiGet('me');
+      if (res.ok) {
+        currentUser = res.data;
+      } else {
+        currentUser = null;
+      }
+    } catch (e) {
+      currentUser = null;
+    }
+    updateRoleUI();
+  }
+
+  // ----------------- 通用函数 -----------------
+  function getYearMonthFromInputs() {
+    const yearInput   = document.getElementById('year-input');
+    const monthSelect = document.getElementById('month-select');
+    let year  = parseInt(yearInput.value, 10);
+    let month = parseInt(monthSelect.value, 10);
+    const now = new Date();
+    if (!year)  { year  = now.getFullYear(); yearInput.value = year; }
+    if (!month) { month = now.getMonth() + 1; monthSelect.value = month; }
+    return { year, month };
+  }
+
+  function daysInMonth(year, month) {
+    return new Date(year, month, 0).getDate();
+  }
+
+  // ----------------- 补贴配置本地存储 -----------------
+  function loadAllowanceConfig() {
+    try {
+      const raw = localStorage.getItem(ALLOWANCE_STORAGE_KEY);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (typeof obj.first === 'number') allowanceConfig.first = obj.first;
+        if (typeof obj.next  === 'number') allowanceConfig.next  = obj.next;
+      }
+    } catch (e) {}
+    const firstInput = document.getElementById('qy-first-input');
+    const nextInput  = document.getElementById('qy-next-input');
+    if (firstInput) firstInput.value = allowanceConfig.first;
+    if (nextInput)  nextInput.value  = allowanceConfig.next;
+  }
+
+  function bindAllowanceInputs() {
+    const firstInput = document.getElementById('qy-first-input');
+    const nextInput  = document.getElementById('qy-next-input');
+    if (firstInput) {
+      firstInput.addEventListener('change', () => {
+        if (!isAdmin()) {
+          firstInput.value = allowanceConfig.first;
+          alert('仅管理员可修改补贴标准');
+          return;
+        }
+        let v = parseFloat(firstInput.value);
+        if (isNaN(v) || v < 0) v = 0;
+        allowanceConfig.first = v;
+        localStorage.setItem(ALLOWANCE_STORAGE_KEY, JSON.stringify(allowanceConfig));
+        renderAllowanceTable();
+      });
+    }
+    if (nextInput) {
+      nextInput.addEventListener('change', () => {
+        if (!isAdmin()) {
+          nextInput.value = allowanceConfig.next;
+          alert('仅管理员可修改补贴标准');
+          return;
+        }
+        let v = parseFloat(nextInput.value);
+        if (isNaN(v) || v < 0) v = 0;
+        allowanceConfig.next = v;
+        localStorage.setItem(ALLOWANCE_STORAGE_KEY, JSON.stringify(allowanceConfig));
+        renderAllowanceTable();
+      });
+    }
+  }
+
+  // ----------------- 员工管理 -----------------
+  function renderEmployees() {
+    const listEl = document.getElementById('employee-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    if (!globalEmployees.length) {
+      listEl.innerHTML = '<span class="hint">当前没有任何人员，请先添加（管理员）。</span>';
+      return;
+    }
+
+    globalEmployees.forEach(emp => {
+      const tag = document.createElement('div');
+      tag.className = 'employee-tag';
+      tag.innerHTML = `
+        <span class="name" title="${emp.name}">${emp.name}</span>
+        ${isAdmin() ? `<button title="删除该人员（所有月份）" data-id="${emp.id}">×</button>` : ''}
+      `;
+      listEl.appendChild(tag);
+    });
+
+    if (isAdmin()) {
+      listEl.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = parseInt(btn.getAttribute('data-id'), 10);
+          if (!confirm('确定删除该人员以及其所有考勤记录？')) return;
+          try {
+            const res = await apiPost('delete_employee', { employee_id: id });
+            if (!res.ok) {
+              alert(res.msg || '删除失败');
+              return;
+            }
+            await loadEmployees();
+            await loadCurrentMonthData();
+            renderQyResidentSettingsTable();
+          } catch (e) {
+            alert('删除人员请求失败：' + e.message);
+          }
+        });
+      });
+    }
+  }
+
+  async function loadEmployees() {
+    if (!currentUser) return;
+    try {
+      const res = await apiGet('get_employees');
+      if (!res.ok) {
+        alert(res.msg || '获取员工列表失败');
+        return;
+      }
+      globalEmployees = (res.data || []).map(emp => ({
+        ...emp,
+        id: Number(emp.id)
+      }));
+      renderEmployees();
+      updatePublicEmpSelect();
+      renderQyResidentSettingsTable();
+    } catch (e) {
+      alert('获取员工列表请求失败：' + e.message);
+    }
+  }
+
+  async function addEmployeeSingle() {
+    if (!isAdmin()) {
+      alert('仅管理员可添加人员');
+      return;
+    }
+    const nameInput = document.getElementById('emp-name-input');
+    const name = (nameInput.value || '').trim();
+    if (!name) {
+      alert('姓名不能为空');
+      return;
+    }
+    const { year, month } = getYearMonthFromInputs();
+    try {
+      const res = await apiPost('add_employee', { name, year, month });
+      if (!res.ok) {
+        alert(res.msg || '添加失败');
+        return;
+      }
+      nameInput.value = '';
+      await loadEmployees();
+      await loadCurrentMonthData();
+      await ensureQyResidentRulesLoaded(year);
+      renderQyResidentSettingsTable();
+    } catch (e) {
+      alert('添加人员请求失败：' + e.message);
+    }
+  }
+
+  async function addEmployeeBulk() {
+    if (!isAdmin()) {
+      alert('仅管理员可批量添加人员');
+      return;
+    }
+    const input = document.getElementById('emp-bulk-input');
+    const text = (input.value || '').trim();
+    if (!text) {
+      alert('请输入要添加的姓名列表');
+      return;
+    }
+    const names = text.split(/[,，、\s]+/).map(n => n.trim()).filter(Boolean);
+    if (!names.length) {
+      alert('没有识别到有效姓名，请检查输入格式');
+      return;
+    }
+    const { year, month } = getYearMonthFromInputs();
+    let okCount = 0, failCount = 0;
+    for (const name of names) {
+      try {
+        const res = await apiPost('add_employee', { name, year, month });
+        if (res.ok) okCount++; else failCount++;
+      } catch (e) {
+        failCount++;
+      }
+    }
+    input.value = '';
+    await loadEmployees();
+    await loadCurrentMonthData();
+    await ensureQyResidentRulesLoaded(year);
+    renderQyResidentSettingsTable();
+    alert(`批量添加完成：成功 ${okCount} 人，失败 ${failCount} 人。`);
+  }
+
+  // ----------------- 月度数据加载 -----------------
+  async function loadCurrentMonthData() {
+    if (!currentUser) {
+      return;
+    }
+    const { year, month } = getYearMonthFromInputs();
+    try {
+      const res = await apiGet('get_month_data', { year, month });
+      if (!res.ok) {
+        if (res.msg) alert(res.msg);
+        return;
+      }
+      currentMonthData.year       = res.data.year;
+      currentMonthData.month      = res.data.month;
+      currentMonthData.employees  = res.data.employees || [];
+      currentMonthData.attendance = res.data.attendance || {};
+
+      await ensureQyResidentRulesLoaded(year);
+      renderAttendanceTable();
+      updateChart();
+      renderAllowanceTable();
+    } catch (e) {
+      alert('加载当月数据失败：' + e.message);
+    }
+  }
+
+  function calcSummaryForEmployeeInCurrentMonth(empId) {
+    const year  = currentMonthData.year;
+    const month = currentMonthData.month;
+    if (!year || !month) return { totalDays: 0, gzDays: 0, qyDays: 0 };
+    const empDays = currentMonthData.attendance[empId] || {};
+    let totalDays = 0, gzDays = 0, qyDays = 0;
+    Object.values(empDays).forEach(v => {
+      // 出勤 = 广州 + 清远 + 公假
+      if (v === '广州' || v === '清远' || v === '公假') {
+        totalDays++;
+      }
+      if (v === '广州') gzDays++;
+      if (v === '清远') qyDays++;
+    });
+    return { totalDays, gzDays, qyDays };
+  }
+
+  async function handleCellChange(empId, day, value) {
+    if (!isAdmin()) {
+      alert('仅管理员可编辑考勤');
+      renderAttendanceTable();
+      return;
+    }
+    const { year, month } = getYearMonthFromInputs();
+    try {
+      const res = await apiPost('save_attendance', {
+        employee_id: empId,
+        year,
+        month,
+        day,
+        location: value || ''
+      });
+      if (!res.ok) {
+        alert(res.msg || '保存失败');
+        renderAttendanceTable();
+        return;
+      }
+      if (!currentMonthData.attendance[empId]) {
+        currentMonthData.attendance[empId] = {};
+      }
+      if (!value) {
+        delete currentMonthData.attendance[empId][day];
+      } else {
+        currentMonthData.attendance[empId][day] = value;
+      }
+      renderAttendanceTable();
+      updateChart();
+      renderAllowanceTable();
+    } catch (e) {
+      alert('保存考勤请求失败：' + e.message);
+    }
+  }
+
+  async function removeEmployeeFromCurrentMonth(empId) {
+    if (!isAdmin()) {
+      alert('仅管理员可从当月移除人员');
+      return;
+    }
+    const { year, month } = getYearMonthFromInputs();
+    if (!confirm('仅从当前月份移除此人？（不会删除该人的其他月份记录）')) return;
+    try {
+      const res = await apiPost('remove_employee_from_month', {
+        employee_id: empId,
+        year,
+        month
+      });
+      if (!res.ok) {
+        alert(res.msg || '移除失败');
+        return;
+      }
+      await loadCurrentMonthData();
+    } catch (e) {
+      alert('移除请求失败：' + e.message);
+    }
+  }
+
+  // 颜色 class
+  function getStatusClass(val) {
+    switch (val) {
+      case '广州': return 'status-gz';
+      case '清远': return 'status-qy';
+      case '公假': return 'status-gongjia';
+      case '缺勤': return 'status-absent';
+      case '事假': return 'status-shijia';
+      case '病假': return 'status-bingjia';
+      case '产假': return 'status-chanjia';
+      case '丧假': return 'status-sangjia';
+      default: return '';
+    }
+  }
+
+  function renderAttendanceTable(options = {}) {
+    const { skipStructure } = options;
+    const container = document.getElementById('attendance-table-container');
+    const emptyHint = document.getElementById('table-empty-hint');
+
+    if (!currentUser) {
+      container.innerHTML = '';
+      emptyHint.textContent = '请先登录后再加载考勤数据。';
+      emptyHint.style.display = '';
+      return;
+    }
+
+    const yearMonth = getYearMonthFromInputs();
+    const year  = yearMonth.year;
+    const month = yearMonth.month;
+
+    if (!year || !month) {
+      container.innerHTML = '';
+      emptyHint.textContent = '请先选择年份和月份。';
+      emptyHint.style.display = '';
+      return;
+    }
+
+    const employees = currentMonthData.employees || [];
+    if (!employees.length) {
+      container.innerHTML = '';
+      emptyHint.textContent = '当前月份暂无启用人员，请先添加人员。';
+      emptyHint.style.display = '';
+      return;
+    }
+
+    emptyHint.style.display = 'none';
+    const days = daysInMonth(year, month);
+
+    if (!skipStructure) {
+      const weekdayMap = ['日','一','二','三','四','五','六'];
+
+      let theadHtml = '<thead><tr>';
+      theadHtml += '<th class="name-col">姓名<br><span style="font-size:10px;color:#999;">（本月移除不影响其他月份）</span></th>';
+      for (let d = 1; d <= days; d++) {
+        const jsDate = new Date(year, month - 1, d);
+        const w = weekdayMap[jsDate.getDay()];
+        theadHtml += `<th>${d}<span class="weekday-label">周${w}</span></th>`;
+      }
+      theadHtml += '<th class="summary-col">出勤天数</th>';
+      theadHtml += '<th class="summary-col">广州</th>';
+      theadHtml += '<th class="summary-col">清远</th>';
+      theadHtml += '</tr></thead>';
+
+      let tbodyHtml = '<tbody>';
+      employees.forEach(emp => {
+        const empId = emp.id;
+        const empDays = currentMonthData.attendance[empId] || {};
+        const residentLabel = getQyResidentLabelForMonth(empId, year, month);
+        const isResidentThisMonth = !!residentLabel;
+
+        tbodyHtml += `<tr data-emp-id="${empId}" class="${isResidentThisMonth ? 'qy-resident-row' : ''}">`;
+        tbodyHtml += `<td class="name-col">${emp.name}${residentLabel ? `<span class="qy-resident-tag">${residentLabel}</span>` : ''}${isAdmin() ? `<button class="month-remove-btn" data-emp-id="${empId}">本月移除</button>` : ''}</td>`;
+        for (let d = 1; d <= days; d++) {
+          const val = empDays[d] || '';
+          const statusClass = getStatusClass(val);
+          tbodyHtml += `<td class="${statusClass}">`;
+          tbodyHtml += `<select class="att-cell" data-emp-id="${empId}" data-day="${d}" ${isAdmin() ? '' : 'disabled'}>`;
+          tbodyHtml += `<option value="" ${val === '' ? 'selected' : ''}>-</option>`;
+          tbodyHtml += `<option value="广州" ${val === '广州' ? 'selected' : ''}>广州</option>`;
+          tbodyHtml += `<option value="清远" ${val === '清远' ? 'selected' : ''}>清远</option>`;
+          tbodyHtml += `<option value="公假" ${val === '公假' ? 'selected' : ''}>公假</option>`;
+          tbodyHtml += `<option value="事假" ${val === '事假' ? 'selected' : ''}>事假</option>
+          <option value="病假" ${val === '病假' ? 'selected' : ''}>病假</option>`;
+          tbodyHtml += `<option value="产假" ${val === '产假' ? 'selected' : ''}>产假</option>`;
+          tbodyHtml += `<option value="丧假" ${val === '丧假' ? 'selected' : ''}>丧假</option>`;
+          tbodyHtml += `<option value="缺勤" ${val === '缺勤' ? 'selected' : ''}>缺勤</option>`;
+          tbodyHtml += '</select>';
+          tbodyHtml += '</td>';
+        }
+        const { totalDays, gzDays, qyDays } = calcSummaryForEmployeeInCurrentMonth(empId);
+        tbodyHtml += `<td class="summary-col" data-summary="total">${totalDays}</td>`;
+        tbodyHtml += `<td class="summary-col" data-summary="gz">${gzDays}</td>`;
+        tbodyHtml += `<td class="summary-col" data-summary="qy">${qyDays}</td>`;
+        tbodyHtml += '</tr>';
+      });
+      tbodyHtml += '</tbody>';
+
+      container.innerHTML = `<table>${theadHtml}${tbodyHtml}</table>`;
+
+      container.querySelectorAll('select.att-cell').forEach(sel => {
+        sel.addEventListener('change', () => {
+          const empId = parseInt(sel.getAttribute('data-emp-id'), 10);
+          const day   = parseInt(sel.getAttribute('data-day'), 10);
+          const value = sel.value;
+          handleCellChange(empId, day, value);
+        });
+      });
+
+      if (isAdmin()) {
+        container.querySelectorAll('button.month-remove-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const empId = parseInt(btn.getAttribute('data-emp-id'), 10);
+            removeEmployeeFromCurrentMonth(empId);
+          });
+        });
+      }
+
+    } else {
+      const rows = container.querySelectorAll('tbody tr[data-emp-id]');
+      rows.forEach(row => {
+        const empId = parseInt(row.getAttribute('data-emp-id'), 10);
+        const { totalDays, gzDays, qyDays } = calcSummaryForEmployeeInCurrentMonth(empId);
+        const tCell = row.querySelector('td[data-summary="total"]');
+        const gCell = row.querySelector('td[data-summary="gz"]');
+        const qCell = row.querySelector('td[data-summary="qy"]');
+        if (tCell) tCell.textContent = totalDays;
+        if (gCell) gCell.textContent = gzDays;
+        if (qCell) qCell.textContent = qyDays;
+      });
+    }
+  }
+
+  // ----------------- 图表 -----------------
+  function updateChart() {
+    const canvas = document.getElementById('attendance-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    if (!currentMonthData.year || !currentMonthData.month || !currentMonthData.employees.length) {
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+      return;
+    }
+
+    const labels = [];
+    const gzData = [];
+    const qyData = [];
+
+    currentMonthData.employees.forEach(emp => {
+      const { gzDays, qyDays } = calcSummaryForEmployeeInCurrentMonth(emp.id);
+      labels.push(emp.name);
+      gzData.push(gzDays);
+      qyData.push(qyDays);
+    });
+
+    if (chartInstance) {
+      chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '广州出勤天数',
+            data: gzData,
+            backgroundColor: 'rgba(54, 162, 235, 0.6)'
+          },
+          {
+            label: '清远出勤天数',
+            data: qyData,
+            backgroundColor: 'rgba(255, 99, 132, 0.6)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' },
+          title: {
+            display: true,
+            text: `${currentMonthData.year}年${currentMonthData.month}月 广州 / 清远出勤天数`
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
+          }
+        }
+      }
+    });
+  }
+
+  // ----------------- 清远补贴计算 -----------------
+  function calcQingyuanAllowanceFromDaysMap(daysMap) {
+    const qyDaysList = Object.entries(daysMap)
+      .filter(([, v]) => v === '清远')
+      .map(([d]) => parseInt(d, 10))
+      .sort((a, b) => a - b);
+
+    const totalQyDays = qyDaysList.length;
+    if (!totalQyDays) return { qyDays: 0, allowance: 0 };
+
+    const firstRate = Number(allowanceConfig.first) || 0;
+    const nextRate  = Number(allowanceConfig.next)  || 0;
+
+    let allowance = 0;
+    let i = 0;
+    while (i < qyDaysList.length) {
+      let streakLen = 1;
+      while (i + 1 < qyDaysList.length && qyDaysList[i + 1] === qyDaysList[i] + 1) {
+        i++;
+        streakLen++;
+      }
+      allowance += firstRate + Math.max(0, streakLen - 1) * nextRate;
+      i++;
+    }
+    return { qyDays: totalQyDays, allowance };
+  }
+
+  function renderAllowanceTable() {
+    const container = document.getElementById('allowance-table-container');
+    if (!container) return;
+
+    if (!currentMonthData.year || !currentMonthData.month || !currentMonthData.employees.length) {
+      container.innerHTML = '<span class="hint">当前月份暂无人员或数据，无法计算清远补贴。</span>';
+      return;
+    }
+
+    const year  = currentMonthData.year;
+    const month = currentMonthData.month;
+    const yearMap = qyResidentMapByYear[year] || {};
+
+    let rowsHtml = '';
+    let totalAllowance = 0;
+
+    currentMonthData.employees.forEach(emp => {
+      const empDays = currentMonthData.attendance[emp.id] || {};
+      const { qyDays, allowance } = calcQingyuanAllowanceFromDaysMap(empDays);
+
+      const rule = yearMap[emp.id] || 'none';
+      const residentThisMonth = isQyResidentForMonth(rule, month);
+      const finalAllowance = residentThisMonth ? 0 : allowance;
+
+      totalAllowance += finalAllowance;
+      const note = residentThisMonth ? '（本月为清远常驻，不计补贴）' : '';
+
+      rowsHtml += `
+        <tr>
+          <td>${emp.name}</td>
+          <td>${qyDays}</td>
+          <td>${finalAllowance.toFixed(2)}${note}</td>
+        </tr>
+      `;
+    });
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>姓名</th>
+            <th>清远出勤天数</th>
+            <th>补贴金额（元）</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+          <tr>
+            <td><strong>合计</strong></td>
+            <td></td>
+            <td><strong>${totalAllowance.toFixed(2)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }
+
+  // ----------------- 年度汇总 -----------------
+  async function renderYearSummary() {
+    const yearInput = document.getElementById('year-summary-input');
+    const container = document.getElementById('year-summary-table');
+    const year = parseInt(yearInput.value, 10);
+    if (!year) {
+      alert('请输入年份');
+      return;
+    }
+    if (!currentUser) {
+      alert('请先登录');
+      return;
+    }
+
+    try {
+      await loadEmployees();
+      await ensureQyResidentRulesLoaded(year);
+      const yearMap = qyResidentMapByYear[year] || {};
+
+      if (!globalEmployees.length) {
+        container.innerHTML = '<span class="hint">暂无员工数据。</span>';
+        return;
+      }
+
+      const summaryMap = {};
+      globalEmployees.forEach(emp => {
+        summaryMap[emp.id] = {
+          name: emp.name,
+          totalYear: 0,
+          gzYear: 0,
+          qyYear: 0,
+          allowance: 0,
+          monthly: {}
+        };
+      });
+
+      for (let m = 1; m <= 12; m++) {
+        const res = await apiGet('get_month_data', { year, month: m });
+        if (!res.ok) continue;
+        const attendance = res.data.attendance || {};
+        const employeesM = res.data.employees || [];
+
+        employeesM.forEach(emp => {
+          const empId   = emp.id;
+          const daysMap = attendance[empId] || {};
+
+          let total = 0, gz = 0, qy = 0;
+          Object.values(daysMap).forEach(v => {
+            if (v === '广州' || v === '清远' || v === '公假') {
+              total++;
+            }
+            if (v === '广州') gz++;
+            if (v === '清远') qy++;
+          });
+
+          let { allowance } = calcQingyuanAllowanceFromDaysMap(daysMap);
+          const rule = yearMap[empId] || 'none';
+          const residentThisMonth = isQyResidentForMonth(rule, m);
+          if (residentThisMonth) {
+            allowance = 0;
+          }
+
+          if (!summaryMap[empId]) {
+            summaryMap[empId] = {
+              name: emp.name,
+              totalYear: 0,
+              gzYear: 0,
+              qyYear: 0,
+              allowance: 0,
+              monthly: {}
+            };
+          }
+
+          const s = summaryMap[empId];
+          s.totalYear += total;
+          s.gzYear    += gz;
+          s.qyYear    += qy;
+          s.allowance += allowance;
+          s.monthly[m] = {
+            total,
+            gz,
+            qy
+          };
+        });
+      }
+
+      const data = Object.values(summaryMap).filter(
+        x => x.totalYear > 0 || x.qyYear > 0 || x.allowance > 0
+      );
+
+      if (!data.length) {
+        container.innerHTML = '<span class="hint">该年份暂无考勤数据。</span>';
+        return;
+      }
+
+      // 表1：出勤天数（广州 / 清远）按月份 + 年度总和
+      let theadHtml = '<thead>';
+      theadHtml += '<tr>';
+      theadHtml += '<th rowspan="2">序号</th>';
+      theadHtml += '<th rowspan="2">姓名</th>';
+      theadHtml += '<th rowspan="2">出勤地点</th>';
+      theadHtml += '<th rowspan="2">出勤日期总和</th>';
+      theadHtml += '<th colspan="12">月份</th>';
+      theadHtml += '</tr>';
+      theadHtml += '<tr>';
+      for (let m = 1; m <= 12; m++) {
+        theadHtml += `<th>${m}月</th>`;
+      }
+      theadHtml += '</tr>';
+      theadHtml += '</thead>';
+
+      let tbodyHtml = '<tbody>';
+      let index = 1;
+      data.forEach(item => {
+        // 第一行：广州
+        tbodyHtml += '<tr>';
+        tbodyHtml += `<td rowspan="2">${index}</td>`;
+        tbodyHtml += `<td rowspan="2">${item.name}</td>`;
+        tbodyHtml += '<td>广州</td>';
+        tbodyHtml += `<td>${item.gzYear}</td>`;
+        for (let m = 1; m <= 12; m++) {
+          const mon = item.monthly[m] || { total: 0, gz: 0, qy: 0 };
+          tbodyHtml += `<td>${mon.gz}</td>`;
+        }
+        tbodyHtml += '</tr>';
+
+        // 第二行：清远
+        tbodyHtml += '<tr>';
+        tbodyHtml += '<td>清远</td>';
+        tbodyHtml += `<td>${item.qyYear}</td>`;
+        for (let m = 1; m <= 12; m++) {
+          const mon = item.monthly[m] || { total: 0, gz: 0, qy: 0 };
+          tbodyHtml += `<td>${mon.qy}</td>`;
+        }
+        tbodyHtml += '</tr>';
+
+        index++;
+      });
+      tbodyHtml += '</tbody>';
+
+      const table1 = `<table>${theadHtml}${tbodyHtml}</table>`;
+
+      // 表2：清远补贴汇总
+      let allowanceRows = '';
+      let totalAllowanceAll = 0;
+      data.forEach((item, i) => {
+        totalAllowanceAll += item.allowance;
+        allowanceRows += `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${item.name}</td>
+            <td>${item.qyYear}</td>
+            <td>${item.allowance.toFixed(2)}</td>
+          </tr>
+        `;
+      });
+      const table2 = `
+        <table style="margin-top:6px;">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>姓名</th>
+              <th>全年清远天数</th>
+              <th>全年清远补贴（元）</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allowanceRows}
+            <tr>
+              <td colspan="3"><strong>合计</strong></td>
+              <td><strong>${totalAllowanceAll.toFixed(2)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = `
+        <div style="margin-bottom:4px;font-size:13px;font-weight:600;">年度出勤天数汇总</div>
+        ${table1}
+        <div style="margin-top:10px;margin-bottom:4px;font-size:13px;font-weight:600;">年度清远补贴汇总（已考虑常驻规则）</div>
+        ${table2}
+      `;
+    } catch (e) {
+      alert('生成年度汇总失败：' + e.message);
+    }
+  }
+
+  // ----------------- 年度日历 -----------------
+  function renderYearCalendar() {
+    const input = document.getElementById('year-calendar-input');
+    const container = document.getElementById('year-calendar-container');
+    let year = parseInt(input.value, 10);
+    const now = new Date();
+    if (!year) year = now.getFullYear();
+    input.value = year;
+
+    container.innerHTML = '';
+
+    for (let m = 1; m <= 12; m++) {
+      const monthDiv = document.createElement('div');
+      monthDiv.className = 'calendar-month';
+      const titleDiv = document.createElement('div');
+      titleDiv.className = 'calendar-month-title';
+      titleDiv.textContent = `${m}月`;
+      monthDiv.appendChild(titleDiv);
+
+      const table = document.createElement('table');
+      table.className = 'calendar-table';
+
+      const thead = document.createElement('thead');
+      const trh = document.createElement('tr');
+      ['一','二','三','四','五','六','日'].forEach(d => {
+        const th = document.createElement('th');
+        th.textContent = d;
+        trh.appendChild(th);
+      });
+      thead.appendChild(trh);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      const firstDate = new Date(year, m - 1, 1);
+      const firstDay = (firstDate.getDay() + 6) % 7; // 周一为 0
+      const days = daysInMonth(year, m);
+
+      let curDay = 1;
+      for (let week = 0; week < 6 && curDay <= days; week++) {
+        const tr = document.createElement('tr');
+        for (let wd = 0; wd < 7; wd++) {
+          const td = document.createElement('td');
+          if ((week === 0 && wd < firstDay) || curDay > days) {
+            td.className = 'calendar-empty';
+            td.textContent = '';
+          } else {
+            td.textContent = curDay;
+            if (wd >= 5) td.classList.add('calendar-weekend'); // 周六日
+            curDay++;
+          }
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+
+      table.appendChild(tbody);
+      monthDiv.appendChild(table);
+      container.appendChild(monthDiv);
+    }
+  }
+
+  // ----------------- 公示系统 -----------------
+  function updatePublicEmpSelect() {
+    const sel = document.getElementById('public-emp-select');
+    if (!sel) return;
+    sel.innerHTML = '';
+    if (!globalEmployees.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = '暂无人员';
+      sel.appendChild(opt);
+      return;
+    }
+    globalEmployees.forEach(emp => {
+      const opt = document.createElement('option');
+      opt.value = emp.id;
+      opt.textContent = emp.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function generatePublicView() {
+    const yearInput  = document.getElementById('public-year-input');
+    const monthSel   = document.getElementById('public-month-select');
+    const empSel     = document.getElementById('public-emp-select');
+    const output     = document.getElementById('public-output');
+
+    const year  = parseInt(yearInput.value, 10);
+    const month = parseInt(monthSel.value, 10);
+    const empId = parseInt(empSel.value, 10);
+
+    if (!year || !empId) {
+      alert('请先选择年份和人员');
+      return;
+    }
+    if (!currentUser) {
+      alert('请先登录');
+      return;
+    }
+
+    const emp = globalEmployees.find(e => e.id === empId);
+    if (!emp) {
+      output.innerHTML = '<span class="hint">未找到该人员。</span>';
+      return;
+    }
+
+    try {
+      await ensureQyResidentRulesLoaded(year);
+      const yearMap = qyResidentMapByYear[year] || {};
+
+      if (month === 0) {
+        let totalDays = 0, gzDays = 0, qyDays = 0, totalAllowance = 0;
+        for (let m = 1; m <= 12; m++) {
+          const res = await apiGet('get_month_data', { year, month: m });
+          if (!res.ok) continue;
+          const attendance = res.data.attendance || {};
+          const daysMap = attendance[empId] || {};
+          Object.values(daysMap).forEach(v => {
+            if (v === '广州' || v === '清远' || v === '公假') {
+              totalDays++;
+            }
+            if (v === '广州') gzDays++;
+            if (v === '清远') qyDays++;
+          });
+          let { allowance } = calcQingyuanAllowanceFromDaysMap(daysMap);
+          const rule = yearMap[empId] || 'none';
+          const residentThisMonth = isQyResidentForMonth(rule, m);
+          if (residentThisMonth) {
+            allowance = 0;
+          }
+          totalAllowance += allowance;
+        }
+        const rule = yearMap[empId] || 'none';
+        let ruleText = '';
+        if (rule === 'full')   ruleText = '（全年常驻清远，不计常驻月份清远补贴）';
+        if (rule === 'first')  ruleText = '（上半年常驻清远，1–6 月不计补贴）';
+        if (rule === 'second') ruleText = '（下半年常驻清远，7–12 月不计补贴）';
+
+        output.innerHTML = `
+          <div style="font-size:14px;margin-bottom:4px;">
+            <strong>${emp.name}</strong> —— ${year} 年出勤与清远补贴公示 ${ruleText}
+          </div>
+          <table>
+            <thead>
+              <tr><th>项目</th><th>数据</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>全年出勤天数</td><td>${totalDays}</td></tr>
+              <tr><td>其中广州天数</td><td>${gzDays}</td></tr>
+              <tr><td>其中清远天数</td><td>${qyDays}</td></tr>
+              <tr><td>全年清远补贴</td><td>${totalAllowance.toFixed(2)} 元</td></tr>
+            </tbody>
+          </table>
+        `;
+      } else {
+        const res = await apiGet('get_month_data', { year, month });
+        if (!res.ok) {
+          output.innerHTML = `<span class="hint">加载数据失败：${res.msg || ''}</span>`;
+          return;
+        }
+        const attendance = res.data.attendance || {};
+        const daysMap = attendance[empId] || {};
+        const days = daysInMonth(year, month);
+
+        let totalDays = 0, gzDays = 0, qyDays = 0;
+        Object.values(daysMap).forEach(v => {
+          if (v === '广州' || v === '清远' || v === '公假') {
+            totalDays++;
+          }
+          if (v === '广州') gzDays++;
+          if (v === '清远') qyDays++;
+        });
+        let { allowance } = calcQingyuanAllowanceFromDaysMap(daysMap);
+
+        const rule = yearMap[empId] || 'none';
+        const residentThisMonth = isQyResidentForMonth(rule, month);
+        let extraNote = '';
+        if (residentThisMonth) {
+          allowance = 0;
+          extraNote = '（本月为清远常驻月份，不计清远补贴）';
+        }
+
+        let rows = '';
+        for (let d = 1; d <= days; d++) {
+          const v = daysMap[d] || '';
+          rows += `<tr><td>${d}</td><td>${v || '-'}</td></tr>`;
+        }
+
+        output.innerHTML = `
+          <div style="font-size:14px;margin-bottom:4px;">
+            <strong>${emp.name}</strong> —— ${year} 年 ${month} 月出勤与清远补贴公示 ${extraNote}
+          </div>
+          <table style="margin-bottom:8px;">
+            <thead>
+              <tr><th>项目</th><th>数据</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>出勤天数（广州+清远+公假）</td><td>${totalDays}</td></tr>
+              <tr><td>其中广州天数</td><td>${gzDays}</td></tr>
+              <tr><td>其中清远天数</td><td>${qyDays}</td></tr>
+              <tr><td>本月清远补贴</td><td>${allowance.toFixed(2)} 元</td></tr>
+            </tbody>
+          </table>
+          <table>
+            <thead>
+              <tr><th>日期</th><th>地点 / 状态</th></tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        `;
+      }
+    } catch (e) {
+      output.innerHTML = `<span class="hint">生成公示失败：${e.message}</span>`;
+    }
+  }
+
+  // ----------------- 管理工具按钮（保持占位逻辑） -----------------
+  function bindDisabledAdminTools() {
+    const clearMonthBtn = document.getElementById('clear-month-btn');
+    const resetAllBtn   = document.getElementById('reset-all-btn');
+    const exportBtn     = document.getElementById('export-data-btn');
+    const exportFinanceMonthBtn = document.getElementById('export-finance-month-btn');
+    const exportFinanceYearBtn  = document.getElementById('export-finance-year-btn');
+    const importBtn     = document.getElementById('import-data-btn');
+
+    if (clearMonthBtn) {
+      clearMonthBtn.addEventListener('click', () => {
+        alert('多人共享数据库版暂未提供“清空当月”按钮，请由管理员在数据库或后续后台页面中处理。');
+      });
+    }
+    if (resetAllBtn) {
+      resetAllBtn.addEventListener('click', () => {
+        alert('为安全起见，暂不提供一键“重置全部数据”按钮，可在数据库中手动清理。');
+      });
+    }
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        if (!isAdmin()) {
+          alert('仅管理员可以导出年度汇总数据。');
+          return;
+        }
+        const yearInput = document.getElementById('year-summary-input');
+        const year = parseInt(yearInput.value, 10);
+        if (!year) {
+          alert('请先在“年度汇总”模块输入年份。');
+          return;
+        }
+        const firstInput = document.getElementById('qy-first-input');
+        const nextInput  = document.getElementById('qy-next-input');
+        const first = firstInput && firstInput.value ? firstInput.value : 110;
+        const next  = nextInput  && nextInput.value  ? nextInput.value  : 35;
+
+        if (!confirm(`确定导出 ${year} 年的年度汇总数据吗？\n清远补贴规则：首日 ${first} 元，后续 ${next} 元/天`)) {
+          return;
+        }
+
+        const url = `export_year_summary.php?year=${encodeURIComponent(year)}&first=${encodeURIComponent(first)}&next=${encodeURIComponent(next)}`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      });
+    }
+
+if (exportFinanceMonthBtn) {
+  exportFinanceMonthBtn.addEventListener('click', () => {
+    if (!isAdmin()) {
+      alert('仅管理员可以导出财务模板。');
+      return;
+    }
+    const yearInput = document.getElementById('year-input');
+    const monthSelect = document.getElementById('month-select');
+    const year = parseInt(yearInput.value, 10);
+    const month = parseInt(monthSelect.value, 10);
+    if (!year || !month) {
+      alert('请先在顶部选择年份与月份。');
+      return;
+    }
+    if (!confirm(`确定导出 ${year} 年 ${month} 月的财务考勤模板吗？\n`)) {
+      return;
+    }
+    const url = `export_finance_template.php?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+}
+
+if (exportFinanceYearBtn) {
+  exportFinanceYearBtn.addEventListener('click', () => {
+    if (!isAdmin()) {
+      alert('仅管理员可以导出财务模板。');
+      return;
+    }
+    const yearInput = document.getElementById('year-input');
+    const year = parseInt(yearInput.value, 10);
+    if (!year) {
+      alert('请先在顶部选择年份。');
+      return;
+    }
+    if (!confirm(`确定导出 ${year} 年全年（12个月）的财务考勤模板 ZIP 吗？`)) {
+      return;
+    }
+    const url = `export_finance_template.php?year=${encodeURIComponent(year)}&month=all`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+}
+    if (importBtn) {
+      importBtn.addEventListener('click', () => {
+        alert('多人共享版暂不支持前端导入 JSON，请通过数据库导入或后续后台工具处理。');
+      });
+    }
+  }
+
+  // ----------------- 控件初始化 -----------------
+  function initControls() {
+    const now = new Date();
+    const yearInput        = document.getElementById('year-input');
+    const monthSelect      = document.getElementById('month-select');
+    const yearSummaryInput = document.getElementById('year-summary-input');
+    const yearCalInput     = document.getElementById('year-calendar-input');
+    const publicYearInput  = document.getElementById('public-year-input');
+    const qyResidentYearInput = document.getElementById('qy-resident-year-input');
+
+    const currentYear = now.getFullYear();
+
+    if (yearInput)        yearInput.value        = currentYear;
+    if (monthSelect)      monthSelect.value      = now.getMonth() + 1;
+    if (yearSummaryInput) yearSummaryInput.value = currentYear;
+    if (yearCalInput)     yearCalInput.value     = currentYear;
+    if (publicYearInput)  publicYearInput.value  = currentYear;
+    if (qyResidentYearInput) {
+      qyResidentYearInput.value = currentYear;
+      qyResidentSettingsYear = currentYear;
+    }
+
+    const addEmpBtn       = document.getElementById('add-emp-btn');
+    const addEmpBulkBtn   = document.getElementById('add-emp-bulk-btn');
+    const loadMonthBtn    = document.getElementById('load-month-btn');
+    const yearSummaryBtn  = document.getElementById('year-summary-btn');
+    const yearCalendarBtn = document.getElementById('year-calendar-btn');
+    const publicBtn       = document.getElementById('public-generate-btn');
+    const qyResidentLoadBtn = document.getElementById('qy-resident-load-btn');
+
+    if (addEmpBtn)       addEmpBtn.addEventListener('click', addEmployeeSingle);
+    if (addEmpBulkBtn)   addEmpBulkBtn.addEventListener('click', addEmployeeBulk);
+    if (loadMonthBtn)    loadMonthBtn.addEventListener('click', loadCurrentMonthData);
+    if (yearSummaryBtn)  yearSummaryBtn.addEventListener('click', renderYearSummary);
+    if (yearCalendarBtn) yearCalendarBtn.addEventListener('click', renderYearCalendar);
+    if (publicBtn)       publicBtn.addEventListener('click', generatePublicView);
+    if (qyResidentLoadBtn) {
+      qyResidentLoadBtn.addEventListener('click', async () => {
+        const y = parseInt(qyResidentYearInput.value, 10);
+        if (!y) {
+          alert('请输入年份');
+          return;
+        }
+        qyResidentSettingsYear = y;
+        await loadQyResidentRules(y);
+        renderQyResidentSettingsTable();
+      });
+    }
+  }
+
+  // ----------------- DOM Ready -----------------
+  document.addEventListener('DOMContentLoaded', async () => {
+    initLoginArea();
+    initControls();
+    bindAllowanceInputs();
+    loadAllowanceConfig();
+    bindDisabledAdminTools();
+    renderYearCalendar();
+
+    await checkLoginOnLoad();
+    if (currentUser) {
+      await loadEmployees();
+      await loadCurrentMonthData();
+      const now = new Date();
+      const y = now.getFullYear();
+      qyResidentSettingsYear = y;
+      await loadQyResidentRules(y);
+      renderQyResidentSettingsTable();
+    }
+  });
+</script>
+</body>
+</html>

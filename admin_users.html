@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>考勤系统账号管理页面</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6fb;
+      color: #111827;
+    }
+    header {
+      background: linear-gradient(135deg, #1f2937, #111827);
+      color: #f9fafb;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    header .title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    header .subtitle {
+      font-size: 12px;
+      opacity: .8;
+    }
+    main {
+      max-width: 960px;
+      margin: 12px auto 20px;
+      padding: 0 10px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .card-header .title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .card-header .subtitle {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    label {
+      font-size: 12px;
+      color: #4b5563;
+    }
+    input, select {
+      padding: 4px 7px;
+      border-radius: 6px;
+      border: 1px solid #cbd5f5;
+      font-size: 13px;
+      min-width: 120px;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
+    }
+    button {
+      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #2563eb;
+      background: #2563eb;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    button[disabled] {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 4px 6px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 500;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      color: #4b5563;
+    }
+    .badge-admin {
+      border-color: rgba(22, 163, 74, 0.5);
+      background: rgba(22, 163, 74, 0.12);
+      color: #15803d;
+    }
+    .hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .danger {
+      color: #b91c1c;
+    }
+    footer {
+      text-align: center;
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="title">考勤系统账号管理</div>
+    <div class="subtitle">考勤系统 · 用户账户管理</div>
+  </div>
+  <div>
+    当前登录：<span id="current-user-label" class="badge">未登录</span>
+  </div>
+</header>
+
+<main>
+  <div id="not-admin" class="card" style="display:none;">
+    <div class="card-header">
+      <div class="title danger">无权访问</div>
+    </div>
+    <div>
+      <p style="font-size:13px;">
+        当前账号不是管理员，无法访问后台管理页面。<br>
+        请先在主系统首页（<code>index.html</code>）以管理员账号登录后，再重新打开本页面。
+      </p>
+    </div>
+  </div>
+
+  <div id="admin-panel" style="display:none;">
+    <!-- 创建新用户 -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="title">创建新用户</div>
+          <div class="subtitle">支持创建管理员或普通用户账号</div>
+        </div>
+      </div>
+      <div>
+        <div class="form-row">
+          <label for="new-username">用户名</label>
+          <input id="new-username" type="text" placeholder="例如：office_admin" />
+          <label for="new-password">初始密码</label>
+          <input id="new-password" type="text" placeholder="例如：Gdep@2026" />
+          <label for="new-role">角色</label>
+          <select id="new-role">
+            <option value="admin">管理员</option>
+            <option value="user">普通用户</option>
+          </select>
+          <button id="create-user-btn" type="button">创建</button>
+        </div>
+        <div class="hint">
+          创建成功后，及时把账号和密码通知相关人员。普通用户登录后只能查看考勤，不可修改。
+        </div>
+      </div>
+    </div>
+
+    <!-- 用户列表 -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="title">用户列表</div>
+          <div class="subtitle">支持修改用户名 / 角色、重置密码、删除用户</div>
+        </div>
+        <div>
+          <button id="reload-users-btn" type="button">刷新列表</button>
+        </div>
+      </div>
+      <div id="users-table-container">
+        正在加载用户列表...
+      </div>
+      <div class="hint">
+        删除用户前请确认：系统至少保留一个管理员，且不能删除当前登录账号。
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  账号管理页@Mriese-2026年1月8日
+</footer>
+
+<script>
+  const API_BASE = 'api.php';
+
+  function apiGet(action, params = {}) {
+    const url = new URL(API_BASE, window.location.href);
+    url.searchParams.set('action', action);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    return fetch(url.toString(), {
+      credentials: 'same-origin'
+    }).then(r => r.json());
+  }
+
+  function apiPost(action, data = {}) {
+    const url = new URL(API_BASE, window.location.href);
+    url.searchParams.set('action', action);
+    return fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'same-origin'
+    }).then(r => r.json());
+  }
+
+  let currentUser = null;
+
+  async function checkAdmin() {
+    const label = document.getElementById('current-user-label');
+    const panel = document.getElementById('admin-panel');
+    const notAdmin = document.getElementById('not-admin');
+
+    try {
+      const res = await apiGet('me');
+      if (!res.ok) {
+        label.textContent = '未登录';
+        panel.style.display = 'none';
+        notAdmin.style.display = '';
+        return;
+      }
+      currentUser = res.data;
+      label.textContent = currentUser.username + '（' + currentUser.role + '）';
+      label.className = 'badge ' + (currentUser.role === 'admin' ? 'badge-admin' : '');
+
+      if (currentUser.role !== 'admin') {
+        panel.style.display = 'none';
+        notAdmin.style.display = '';
+      } else {
+        panel.style.display = '';
+        notAdmin.style.display = 'none';
+        await loadUsers();
+      }
+    } catch (e) {
+      label.textContent = '状态获取失败';
+      panel.style.display = 'none';
+      notAdmin.style.display = '';
+    }
+  }
+
+  async function loadUsers() {
+    const container = document.getElementById('users-table-container');
+    container.textContent = '正在加载用户列表...';
+    try {
+      const res = await apiGet('admin_list_users');
+      if (!res.ok) {
+        container.textContent = '加载失败：' + (res.msg || '');
+        return;
+      }
+      const users = res.data || [];
+      if (!users.length) {
+        container.textContent = '当前没有任何用户。';
+        return;
+      }
+      let html = '<table><thead><tr>' +
+        '<th>ID</th><th>用户名</th><th>角色</th><th>创建时间</th><th>操作</th>' +
+        '</tr></thead><tbody>';
+      users.forEach(u => {
+        html += `<tr data-id="${u.id}">
+          <td>${u.id}</td>
+          <td><input type="text" class="username-input" value="${u.username}"></td>
+          <td>
+            <select class="role-select">
+              <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>管理员</option>
+              <option value="user" ${u.role === 'user' ? 'selected' : ''}>普通用户</option>
+            </select>
+          </td>
+          <td>${u.created_at || ''}</td>
+          <td>
+            <button class="btn-save" type="button">保存</button>
+            <button class="btn-reset" type="button">重置密码</button>
+            <button class="btn-delete" type="button">删除</button>
+          </td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+
+      container.querySelectorAll('.btn-save').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tr = btn.closest('tr');
+          const id = parseInt(tr.getAttribute('data-id'), 10);
+          const username = tr.querySelector('.username-input').value.trim();
+          const role = tr.querySelector('.role-select').value;
+          handleUpdateUser(id, username, role);
+        });
+      });
+
+      container.querySelectorAll('.btn-reset').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tr = btn.closest('tr');
+          const id = parseInt(tr.getAttribute('data-id'), 10);
+          const username = tr.querySelector('.username-input').value.trim();
+          handleResetPassword(id, username);
+        });
+      });
+
+      container.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tr = btn.closest('tr');
+          const id = parseInt(tr.getAttribute('data-id'), 10);
+          const username = tr.querySelector('.username-input').value.trim();
+          handleDeleteUser(id, username);
+        });
+      });
+    } catch (e) {
+      container.textContent = '加载失败：' + e.message;
+    }
+  }
+
+  async function handleUpdateUser(id, username, role) {
+    if (!username) {
+      alert('用户名不能为空');
+      return;
+    }
+    if (!confirm(`确定将用户「${username}」更新为角色：${role === 'admin' ? '管理员' : '普通用户'}？`)) {
+      return;
+    }
+    try {
+      const res = await apiPost('admin_update_user', { id, username, role });
+      if (!res.ok) {
+        alert(res.msg || '更新失败');
+        return;
+      }
+      alert('更新成功');
+      await loadUsers();
+    } catch (e) {
+      alert('更新请求失败：' + e.message);
+    }
+  }
+
+  async function handleResetPassword(id, username) {
+    const pwd = prompt(`请输入要为「${username}」重置的新密码：`, '');
+    if (!pwd) return;
+    if (pwd.length < 4) {
+      alert('出于安全考虑，新密码长度建议不少于 4 位');
+      return;
+    }
+    if (!confirm(`确定将「${username}」的密码重置为你刚才输入的内容？`)) return;
+    try {
+      const res = await apiPost('admin_reset_password', { id, new_password: pwd });
+      if (!res.ok) {
+        alert(res.msg || '重置密码失败');
+        return;
+      }
+      alert(res.msg || '密码重置成功');
+    } catch (e) {
+      alert('重置密码请求失败：' + e.message);
+    }
+  }
+
+  async function handleDeleteUser(id, username) {
+    if (!confirm(`确定要删除用户「${username}」吗？\n注意：不能删除当前登录账号，也不能删除最后一个管理员。`)) {
+      return;
+    }
+    try {
+      const res = await apiPost('admin_delete_user', { id });
+      if (!res.ok) {
+        alert(res.msg || '删除失败');
+        return;
+      }
+      alert('删除成功');
+      await loadUsers();
+    } catch (e) {
+      alert('删除请求失败：' + e.message);
+    }
+  }
+
+  async function handleCreateUser() {
+    const unameInput = document.getElementById('new-username');
+    const pwdInput   = document.getElementById('new-password');
+    const roleSel    = document.getElementById('new-role');
+
+    const username = (unameInput.value || '').trim();
+    const password = (pwdInput.value || '').trim();
+    const role     = roleSel.value;
+
+    if (!username || !password) {
+      alert('用户名和密码均不能为空');
+      return;
+    }
+    if (!confirm(`确定创建新用户「${username}」，角色为：${role === 'admin' ? '管理员' : '普通用户'}？`)) {
+      return;
+    }
+
+    try {
+      const res = await apiPost('admin_create_user', { username, password, role });
+      if (!res.ok) {
+        alert(res.msg || '创建失败');
+        return;
+      }
+      alert(`创建成功：${username} (${role})`);
+      unameInput.value = '';
+      pwdInput.value   = '';
+      roleSel.value    = 'admin';
+      await loadUsers();
+    } catch (e) {
+      alert('创建请求失败：' + e.message);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('create-user-btn').addEventListener('click', handleCreateUser);
+    document.getElementById('reload-users-btn').addEventListener('click', loadUsers);
+    checkAdmin();
+  });
+</script>
+</body>
+</html>
